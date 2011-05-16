@@ -414,7 +414,7 @@ static void* do_monitor_phone (void* data)
 
 		if(pvt->terminate_monitor)
 		{
-			ast_log (LOG_NOTICE, "[%s] stop by %s request\n", dev, dev_state2str(pvt->desired_state));
+			ast_log (LOG_NOTICE, "[%s] stopping by %s request\n", dev, dev_state2str(pvt->desired_state));
 			goto e_restart;
 		}
 
