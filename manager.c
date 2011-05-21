@@ -451,7 +451,7 @@ static int manager_ccwa_set (struct mansession* s, const struct message* m)
 {
 	const char*	device	= astman_get_header (m, "Device");
 	const char*	value	= astman_get_header (m, "Value");
-	const char*	id	= astman_get_header (m, "ActionID");
+//	const char*	id	= astman_get_header (m, "ActionID");
 
 	char		buf[256];
 	const char*	msg;
@@ -478,8 +478,8 @@ static int manager_ccwa_set (struct mansession* s, const struct message* m)
 	snprintf (buf, sizeof (buf), "[%s] %s", device, msg);
 	(status ? astman_send_ack : astman_send_error)(s, m, buf);
 
-	if(!ast_strlen_zero(id))
-		astman_append (s, "ActionID: %s\r\n", id);
+//	if(!ast_strlen_zero(id))
+//		astman_append (s, "ActionID: %s\r\n", id);
 
 	return 0;
 }
@@ -487,7 +487,7 @@ static int manager_ccwa_set (struct mansession* s, const struct message* m)
 static int manager_reset (struct mansession* s, const struct message* m)
 {
 	const char*	device	= astman_get_header (m, "Device");
-	const char*	id	= astman_get_header (m, "ActionID");
+//	const char*	id	= astman_get_header (m, "ActionID");
 
 	char		buf[256];
 	const char*	msg;
@@ -503,8 +503,8 @@ static int manager_reset (struct mansession* s, const struct message* m)
 	snprintf (buf, sizeof (buf), "[%s] %s", device, msg);
 	(status ? astman_send_ack : astman_send_error)(s, m, buf);
 
-	if(!ast_strlen_zero(id))
-		astman_append (s, "ActionID: %s\r\n", id);
+//	if(!ast_strlen_zero(id))
+//		astman_append (s, "ActionID: %s\r\n", id);
 
 	return 0;
 }
@@ -516,7 +516,7 @@ static int manager_restart_action(struct mansession * s, const struct message * 
 
 	const char * device = astman_get_header (m, "Device");
 	const char * when = astman_get_header (m, "When");
-	const char * id = astman_get_header (m, "ActionID");
+//	const char * id = astman_get_header (m, "ActionID");
 
 	char buf[256];
 	const char * msg;
@@ -536,15 +536,15 @@ static int manager_restart_action(struct mansession * s, const struct message * 
 			msg = schedule_restart_event(event, i, device, &status);
 			snprintf (buf, sizeof (buf), "[%s] %s", device, msg);
 			(status ? astman_send_ack : astman_send_error)(s, m, buf);
-			if(!ast_strlen_zero(id))
-				astman_append (s, "ActionID: %s\r\n", id);
+//			if(!ast_strlen_zero(id))
+//				astman_append (s, "ActionID: %s\r\n", id);
 			return 0;
 		}
 	}
 
 	astman_send_error (s, m, "Invalid value of When");
-	if(!ast_strlen_zero(id))
-		astman_append (s, "ActionID: %s\r\n", id);
+//	if(!ast_strlen_zero(id))
+//		astman_append (s, "ActionID: %s\r\n", id);
 	return 0;
 }
 
@@ -576,7 +576,7 @@ static int manager_remove(struct mansession * s, const struct message * m)
 static int manager_reload(struct mansession * s, const struct message * m)
 {
 	const char * when = astman_get_header (m, "When");
-	const char * id = astman_get_header (m, "ActionID");
+//	const char * id = astman_get_header (m, "ActionID");
 
 	unsigned i;
 
@@ -586,15 +586,15 @@ static int manager_reload(struct mansession * s, const struct message * m)
 		{
 			pvt_reload(i);
 			astman_send_ack(s, m, "reload scheduled");
-			if(!ast_strlen_zero(id))
-				astman_append (s, "ActionID: %s\r\n", id);
+//			if(!ast_strlen_zero(id))
+//				astman_append (s, "ActionID: %s\r\n", id);
 			return 0;
 		}
 	}
 
 	astman_send_error (s, m, "Invalid value of When");
-	if(!ast_strlen_zero(id))
-		astman_append (s, "ActionID: %s\r\n", id);
+//	if(!ast_strlen_zero(id))
+//		astman_append (s, "ActionID: %s\r\n", id);
 	return 0;
 }
 
