@@ -8,9 +8,9 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=asterisk18-chan-dongle
-PKG_REV:=324
-PKG_VERSION:=1.0.r$(PKG_REV)
-PKG_RELEASE:=204
+PKG_REV:=3
+PKG_VERSION:=1.1.r$(PKG_REV)
+PKG_RELEASE:=6
 
 PKG_SOURCE_URL:=http://asterisk-chan-dongle.googlecode.com/svn/trunk/
 PKG_SOURCE_VERSION:=$(PKG_RELEASE)

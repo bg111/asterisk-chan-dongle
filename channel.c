@@ -651,6 +651,7 @@ static struct ast_frame* channel_read (struct ast_channel* channel)
 
 		cpvt->a_read_frame.samples	= res / 2;
 		cpvt->a_read_frame.datalen	= res;
+		ast_frame_byteswap_le (&cpvt->a_read_frame);
 /*
 		cpvt->a_read_frame.ts;
 		cpvt->a_read_frame.len;
@@ -855,6 +856,7 @@ static int channel_write (struct ast_channel* channel, struct ast_frame* f)
 			int iovcnt;
 			struct iovec iov[2];
 
+			ast_frame_byteswap_le (f);
 			iov[0].iov_base = f->data.ptr;
 			iov[0].iov_len = FRAME_SIZE;
 
