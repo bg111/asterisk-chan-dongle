@@ -1575,14 +1575,27 @@ static int at_response_cgmi (struct pvt* pvt, const char* str)
 
 static int at_response_cgmm (struct pvt* pvt, const char* str)
 {
+	unsigned i;
+	static const char * const seven_bit_modems[] = {
+		"E1550",
+		"E1750",
+		"E160X",
+		"E150",
+		"E173",
+		"E1552",
+	};
+
 	ast_copy_string (pvt->model, str, sizeof (pvt->model));
 
-	if (!strcmp (pvt->model, "E1550") || !strcmp (pvt->model, "E1750") || !strcmp (pvt->model, "E160X") || !strcmp (pvt->model, "E150") || !strcmp (pvt->model, "E173"))
+	for(i = 0; i < ITEMS_OF(seven_bit_modems); ++i)
 	{
-		pvt->cusd_use_7bit_encoding = 1;
-		pvt->cusd_use_ucs2_decoding = 0;
+		if(!strcmp (pvt->model, seven_bit_modems[i]))
+		{
+			pvt->cusd_use_7bit_encoding = 1;
+			pvt->cusd_use_ucs2_decoding = 0;
+			break;
+		}
 	}
-
 	return 0;
 }
 
