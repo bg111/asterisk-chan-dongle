@@ -1156,8 +1156,7 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 	}
 	else
 	{
-		ast_debug(2, "[%s] Error parsing CMTI event '%s'\n", PVT_ID(pvt), str);
-		ast_log (LOG_ERROR, "[%s] Error parsing incoming sms message alert, disconnecting\n", PVT_ID(pvt));
+		ast_log (LOG_ERROR, "[%s] Error parsing incoming sms message alert '%s', disconnecting\n", PVT_ID(pvt), str);
 		return -1;
 	}
 }
