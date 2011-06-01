@@ -446,7 +446,7 @@ static char * pdiscovery_handle_ati(const char * devname, char * str)
 #/* 0D 0A 15 digits 0D 0A */
 static char * pdiscovery_handle_cimi(const char * devname, char * str)
 {
-	char * imsi;
+	char * imsi = NULL;
 	enum states {
 		STATE_BEGIN,
 		STATE_CR1,
