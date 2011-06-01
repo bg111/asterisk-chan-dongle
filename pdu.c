@@ -75,7 +75,7 @@
 		  ....
 		47H: Replace Short Message Type7
 					Another description:
-		
+
 		Bit7 bit6 (bit 7 = 0, bit 6 = 0)
 		l 0 0 Assign bits 0..5, the values are defined as follows.
 		l 1 0 Assign bits 0..5, the values are defined as follows.
@@ -89,10 +89,10 @@
 		All rights reserved Page 73 , Total 140
 		Bit4...Bit0: telematic devices type identifier. If the value is 1 0 0 1 0, it
 		indicates email. Other values are not supported currently.
-		
-		
+
+
 	DCS		1 octet			Data Coding Scheme
-		
+
 	VP		0,1,7 octet(s)		Validity Period
 	UDL		1 octet			User Data Length
 	UD		0-140 octets		User Data
@@ -129,7 +129,7 @@
 		5 SRI	Status Report Indication	Parameter indicating if the SME has requested a status report
 				0 A status report will not be returned to the SME
 				1 A status report will be returned to the SME
-				
+
 		6 UDHI	User Data Header Indicator Parameter indicating that the UD field contains a header
 				0	The UD field contains only the short message
 				1	The beginning of the UD field contains a header in addition of the short message
@@ -151,7 +151,7 @@
 		  ....
 		47H: Replace Short Message Type7
 					Another description:
-		
+
 		Bit7 bit6 (bit 7 = 0, bit 6 = 0)
 		l 0 0 Assign bits 0..5, the values are defined as follows.
 		l 1 0 Assign bits 0..5, the values are defined as follows.
@@ -165,8 +165,8 @@
 		All rights reserved Page 73 , Total 140
 		Bit4...Bit0: telematic devices type identifier. If the value is 1 0 0 1 0, it
 		indicates email. Other values are not supported currently.
-		
-		
+
+
 	DCS		1 octet			Data Coding Scheme
 
 	SCTS		7 octets		Service Center Time Stamp
@@ -268,8 +268,8 @@
 #define PDU_DCS_76_MASK				(0x03 << PDU_DCS_76_SHIFT)
 #define PDU_DCS_76(dcs)				((dcs) & PDU_DCS_76_MASK)
 
-#define ROUND_UP2(x)		(((x) + 1) & (0xFFFFFFFF << 1))
-#define LENGTH2OCTETS(x)	(((x) + 1)/2)
+#define ROUND_UP2(x)				(((x) + 1) & (0xFFFFFFFF << 1))
+#define LENGTH2OCTETS(x)			(((x) + 1)/2)
 
 #/* get digit code, 0 if invalid  */
 EXPORT_DEF char pdu_digit2code(char digit)
@@ -486,7 +486,6 @@ EXPORT_DEF int pdu_parse_sca(char ** pdu, size_t * length)
 			*length -= sca_len;
 
 			/* TODO: Parse SCA Address */
-			
 			return sca_len + 2;
 		}
 	}
@@ -505,7 +504,7 @@ static int pdu_parse_timestamp(char ** pdu, size_t * length)
 	return -EINVAL;
 }
 
-#/* TODO: remove */
+#/* TODO: remove / TODO: append 8 bit */
 static int check_encoding(const char* msg, unsigned length)
 {
 	str_encoding_t possible_enc = get_encoding(RECODE_ENCODE, msg, length);
@@ -518,7 +517,7 @@ static int check_encoding(const char* msg, unsigned length)
  * \brief Build PDU text for SMS
  * \param buffer -- pointer to place where PDU will be stored
  * \param length -- length of buffer
- * \param csca -- number of SMS center may be with leading '+' in International format
+ * \param sca -- number of SMS center may be with leading '+' in International format
  * \param dst -- destination number for SMS may be with leading '+' in International format
  * \param msg -- SMS message in utf-8
  * \param valid_minutes -- Validity period
@@ -526,58 +525,61 @@ static int check_encoding(const char* msg, unsigned length)
  * \param sca_len -- pointer where length of SCA header (in bytes) will be stored
  * \return number of bytes written to buffer w/o trailing 0x1A or 0, -ENOMEM if buffer too short, -EINVAL on iconv recode errors, -E2BIG if message too long
  */
-EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* csca, const char* dst, const char* msg, unsigned valid_minutes, int srr)
+#/* */
+EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const char* dst, const char* msg, unsigned valid_minutes, int srr)
 {
 	char tmp;
 	int len = 0;
 	int data_len;
 
-	int csca_toa = NUMBER_TYPE_INTERNATIONAL;
+	int sca_toa = NUMBER_TYPE_INTERNATIONAL;
 	int dst_toa = NUMBER_TYPE_INTERNATIONAL;
 	int pdutype = PDUTYPE_MTI_SMS_SUBMIT | PDUTYPE_RD_ACCEPT | PDUTYPE_VPF_RELATIVE | PDUTYPE_SRR_NOT_REQUESTED | PDUTYPE_UDHI_NO_HEADER | PDUTYPE_RP_IS_NOT_SET;
 	int dcs;
-	
+
 	unsigned dst_len;
-	unsigned csa_len;
+	unsigned sca_len;
 	unsigned msg_len;
 
 	/* detect msg encoding and use 7Bit or UCS-2, not use 8Bit */
 	msg_len = strlen(msg);
 	dcs = check_encoding(msg, msg_len);
 
-	/* cannot exceed 140 octets for no compressed or cannot exceed 160 septets for compressed */
+	/* cannot exceed 140 octets for not compressed or cannot exceed 160 septets for compressed */
+/*
 	if(((PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_UCS2) && msg_len > 70) || (PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_8BIT && msg_len > 140) || msg_len > 160)
 	{
 		return -E2BIG;
 	}
-
-	if(csca[0] == '+')
-		csca++;
+*/
+	if(sca[0] == '+')
+		sca++;
 
 	if(dst[0] == '+')
 		dst++;
 
 	/* count length of strings */
-	csa_len = strlen(csca);
+	sca_len = strlen(sca);
 	dst_len = strlen(dst);
 
 	/* check buffer has enougth space */
-	if(length < ((csa_len == 0 ? 2 : 4 + ROUND_UP2(csa_len)) + 8 + ROUND_UP2(dst_len) + 8 + msg_len * 4 + 4))
+	if(length < ((sca_len == 0 ? 2 : 4 + ROUND_UP2(sca_len)) + 8 + ROUND_UP2(dst_len) + 8 + msg_len * 4 + 4))
 		return -ENOMEM;
 
 	/* SCA Length */
 	/* Type-of-address of the SMSC */
 	/* Address of SMSC */
-	if(csa_len)
+	if(sca_len)
 	{
-		len += snprintf(buffer + len, length - len, "%02X%02X", 1 + LENGTH2OCTETS(csa_len), csca_toa);
-		len += pdu_store_number(buffer + len, csca, csa_len);
+		len += snprintf(buffer + len, length - len, "%02X%02X", 1 + LENGTH2OCTETS(sca_len), sca_toa);
+		len += pdu_store_number(buffer + len, sca, sca_len);
 	}
 	else
 	{
 		buffer[len++] = '0';
 		buffer[len++] = '0';
 	}
+	sca_len = len;
 
 	if(srr)
 		pdutype |= PDUTYPE_SRR_REQUESTED;
@@ -591,12 +593,15 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* csca, const ch
 	/*  Destination address */
 	len += pdu_store_number(buffer + len, dst, dst_len);
 
-	/* TODO: also check message limit in 178 octet of TPDU (w/o SCA) */
 	/* forward TP-User-Data */
 	data_len = str_recode(RECODE_ENCODE, dcs == PDU_DCS_ALPABET_UCS2 ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT_HEX, msg, msg_len, buffer + len + 8, length - len - 11);
 	if(data_len < 0)
 	{
 		return -EINVAL;
+	}
+	else if(data_len > 160 * 2)
+	{
+		return -E2BIG;
 	}
 
 	/* calc UDL */
@@ -612,6 +617,13 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* csca, const ch
 	buffer[len] = tmp;
 
 	len += data_len;
+
+	/* also check message limit in 178 octets of TPDU (w/o SCA) */
+	if(len - sca_len > 178 * 2)
+	{
+		return -E2BIG;
+	}
+
 	return len;
 }
 
@@ -649,7 +661,7 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 {
 	const char * err = NULL;
 	size_t pdu_length = strlen(*pdu);
-	
+
 	/* decode SCA */
 	int field_len = pdu_parse_sca(pdu, &pdu_length);
 	if(field_len > 0)
@@ -801,4 +813,3 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 
 	return err;
 }
-

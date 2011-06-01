@@ -306,6 +306,6 @@ EXPORT_DEF str_encoding_t get_encoding(recode_direction_t hint, const char* in, 
 		}
 		// TODO: STR_ENCODING_7BIT_HEX or STR_ENCODING_8BIT_HEX or STR_ENCODING_UCS2_HEX
 	}
-	
+
 	return STR_ENCODING_UNKNOWN;
 }
