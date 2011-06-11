@@ -4,7 +4,7 @@
  * Copyright (C) 2011
  * bg <bg_one@mail.ru>
  * http://www.e1550.mobi
- * 
+ *
  * chan_dongle is based on chan_datacard by
  *
  * Artem Makhutov <artem@makhutov.org>
