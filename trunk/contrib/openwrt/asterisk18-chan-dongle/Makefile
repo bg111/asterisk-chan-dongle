@@ -8,24 +8,24 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=asterisk18-chan-dongle
-PKG_REV:=3
+PKG_REV:=7
 PKG_VERSION:=1.1.r$(PKG_REV)
-PKG_RELEASE:=6
+PKG_RELEASE:=11
 
-PKG_SOURCE_URL:=http://asterisk-chan-dongle.googlecode.com/svn/trunk/
-PKG_SOURCE_VERSION:=$(PKG_RELEASE)
-PKG_SOURCE:=chan_dongle-$(PKG_VERSION).tar.gz
-PKG_SOURCE_PROTO:=svn
-PKG_FIXUP:=autoreconf
-# or 
-#PKG_SOURCE:=chan_dongle-$(PKG_VERSION).tgz
-#PKG_SOURCE_URL=http://asterisk-chan-dongle.googlecode.com/files/
-#PKG_MD5SUM:=5277c3a69f188ee6388e70544d69e35a
+#PKG_SOURCE_URL:=http://asterisk-chan-dongle.googlecode.com/svn/trunk/
+#PKG_SOURCE_VERSION:=$(PKG_RELEASE)
+#PKG_SOURCE:=chan_dongle-$(PKG_VERSION).tar.gz
+#PKG_SOURCE_PROTO:=svn
+#PKG_FIXUP:=autoreconf
+# or
+PKG_SOURCE:=chan_dongle-$(PKG_VERSION).tgz
+PKG_SOURCE_URL=http://asterisk-chan-dongle.googlecode.com/files/
+PKG_MD5SUM:=594f65bea809487a610e7d2a27881a79
 
 PKG_SOURCE_SUBDIR:=chan_dongle-$(PKG_VERSION)
 PKG_BUILD_DIR=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 
-WITH_ASTERISK=asterisk-1.8.2.3
+WITH_ASTERISK=asterisk-1.8.3.2
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -40,7 +40,7 @@ define Package/asterisk18-chan-dongle
 endef
 
 define Package/asterisk18-chan-dongle/description
-	Asterisk channel driver for Huawei UMTS 3G dongles
+	Asterisk channel driver for Huawei UMTS 3G dongle
 endef
 
 MAKE_ARGS:= \
