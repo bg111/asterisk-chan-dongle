@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2010 bg <bg_one@mail.ru>
+   Copyright (C) 2010,2011 bg <bg_one@mail.ru>
 */
 #ifdef HAVE_CONFIG_H
 #include <config.h>

@@ -24,7 +24,7 @@
 		./configure --with-asterisk=/usr/src/asterisk-1.6.2.13/include
 	      		or
 		CFLAGS="-I /usr/src/asterisk-1.6.2.13/include" ./configure
-	   enable debigging
+	   enable debugging
 		./configure --enable-debug
     2.4) Build package
 		make
