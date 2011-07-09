@@ -1,12 +1,12 @@
-/* 
-   Copyright (C) 2009 - 2010
-   
-   Artem Makhutov <artem@makhutov.org>
-   http://www.makhutov.org
-   
-   Dmitry Vagin <dmitry2004@yandex.ru>
+/*
+    Copyright (C) 2009 - 2010
+    Artem Makhutov <artem@makhutov.org>
+    http://www.makhutov.org
 
-   bg <bg_one@mail.ru>
+    Dmitry Vagin <dmitry2004@yandex.ru>
+
+    Copyright (C) 2010 - 2011
+    bg <bg_one@mail.ru>
 */
 #ifdef HAVE_CONFIG_H
 #include <config.h>
