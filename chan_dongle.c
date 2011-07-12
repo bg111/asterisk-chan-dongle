@@ -517,7 +517,7 @@ static int pvt_discovery(struct pvt * pvt)
 	char devname[DEVNAMELEN];
 	char imei[IMEI_SIZE+1];
 	char imsi[IMSI_SIZE+1];
-	
+
 	int resolved;
 	if(CONF_UNIQ(pvt, data_tty)[0] == 0 && CONF_UNIQ(pvt, audio_tty)[0] == 0) {
 		char * data_tty;
@@ -561,7 +561,7 @@ static int pvt_discovery(struct pvt * pvt)
 				imei, 
 				imsi[0] == 0 ? "" : " IMSI ", 
 				imsi
-				);		
+				);
 		}
 	} else {
 		ast_copy_string (PVT_STATE(pvt, data_tty),  CONF_UNIQ(pvt, data_tty), sizeof (PVT_STATE(pvt, data_tty)));
