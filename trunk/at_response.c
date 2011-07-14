@@ -1572,9 +1572,11 @@ static int at_response_cgmi (struct pvt* pvt, const char* str)
  * \retval -1 error
  */
 
+#/* */
 static int at_response_cgmm (struct pvt* pvt, const char* str)
 {
 	unsigned i;
+	/* NOTE: in order of appears, replace with sorter and binary search */
 	static const char * const seven_bit_modems[] = {
 		"E1550",
 		"E1750",
@@ -1582,6 +1584,7 @@ static int at_response_cgmm (struct pvt* pvt, const char* str)
 		"E150",
 		"E173",
 		"E1552",
+		"E171",
 	};
 
 	ast_copy_string (pvt->model, str, sizeof (pvt->model));
