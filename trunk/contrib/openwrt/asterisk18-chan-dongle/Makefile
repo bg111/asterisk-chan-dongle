@@ -8,9 +8,9 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=asterisk18-chan-dongle
-PKG_REV:=7
+PKG_REV:=10
 PKG_VERSION:=1.1.r$(PKG_REV)
-PKG_RELEASE:=11
+PKG_RELEASE:=18
 
 #PKG_SOURCE_URL:=http://asterisk-chan-dongle.googlecode.com/svn/trunk/
 #PKG_SOURCE_VERSION:=$(PKG_RELEASE)
@@ -20,7 +20,7 @@ PKG_RELEASE:=11
 # or
 PKG_SOURCE:=chan_dongle-$(PKG_VERSION).tgz
 PKG_SOURCE_URL=http://asterisk-chan-dongle.googlecode.com/files/
-PKG_MD5SUM:=594f65bea809487a610e7d2a27881a79
+PKG_MD5SUM:=4ced3ab7094b62be2a0e843a2d4b4111
 
 PKG_SOURCE_SUBDIR:=chan_dongle-$(PKG_VERSION)
 PKG_BUILD_DIR=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
