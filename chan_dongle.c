@@ -288,7 +288,7 @@ static void disconnect_dongle (struct pvt* pvt)
 		/* unaffected in case of restart */
 		pvt->use_ucs2_encoding = 0;
 		pvt->cusd_use_7bit_encoding = 0;
-		pvt->cusd_use_ucs2_decoding = 0;
+		pvt->cusd_use_ucs2_decoding = 1;
 		pvt->gsm_reg_status = -1;
 		pvt->rssi = 0;
 		pvt->linkmode = 0;
@@ -631,7 +631,7 @@ static void * do_discovery(void * arg)
 {
 	struct public_state * state = (struct public_state *) arg;
 	struct pvt * pvt;
-			
+
 	while(state->unloading_flag == 0)
 	{
 		/* read lock for avoid deadlock when IMEI/IMSI discovery */
@@ -640,7 +640,7 @@ static void * do_discovery(void * arg)
 		{
 			ast_mutex_lock (&pvt->lock);
 			pvt->must_remove = 0;
-			
+
 			if(pvt->restart_time == RESTATE_TIME_NOW && pvt->desired_state != pvt->current_state)
 			{
 				switch(pvt->desired_state)
@@ -678,7 +678,7 @@ static void * do_discovery(void * arg)
 		}
 		AST_RWLIST_TRAVERSE_SAFE_END;
 		AST_RWLIST_UNLOCK(&state->devices);
-		
+
 		/* Go to sleep (only if we are not unloading) */
 		if (state->unloading_flag == 0)
 		{

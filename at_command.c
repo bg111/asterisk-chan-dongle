@@ -70,7 +70,7 @@ static int __attribute__ ((format(printf, 2, 3))) at_fill_generic_cmd (at_queue_
 {
 	va_list ap;
 	int rv;
-	
+
 	va_start(ap, format);
 	rv = at_fill_generic_cmd_va(cmd, format, ap);
 	va_end(ap);
@@ -92,7 +92,7 @@ static int __attribute__ ((format(printf, 4, 5))) at_enque_generic (struct cpvt*
 	va_list ap;
 	int rv;
 	at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_DYN(cmd);
-	
+
 	va_start(ap, format);
 	rv = at_fill_generic_cmd_va(&at_cmd, format, ap);
 	va_end(ap);

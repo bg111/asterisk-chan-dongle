@@ -1589,6 +1589,8 @@ static int at_response_cgmm (struct pvt* pvt, const char* str)
 
 	ast_copy_string (pvt->model, str, sizeof (pvt->model));
 
+	pvt->cusd_use_7bit_encoding = 0;
+	pvt->cusd_use_ucs2_decoding = 1;
 	for(i = 0; i < ITEMS_OF(seven_bit_modems); ++i)
 	{
 		if(!strcmp (pvt->model, seven_bit_modems[i]))
