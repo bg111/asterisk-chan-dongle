@@ -959,8 +959,6 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 		case AST_CONTROL_BUSY:
 		case AST_CONTROL_CONGESTION:
 		case AST_CONTROL_RINGING:
-			break;
-
 		case -1:
 			res = -1;
 			break;
