@@ -18,7 +18,7 @@ PKG_RELEASE:=18
 #PKG_SOURCE_PROTO:=svn
 #PKG_FIXUP:=autoreconf
 # or 
-PKG_SOURCE:=chan-dongle-$(PKG_VERSION).tgz
+PKG_SOURCE:=chan_dongle-$(PKG_VERSION).tgz
 PKG_SOURCE_URL=http://asterisk-chan-dongle.googlecode.com/files/
 PKG_MD5SUM:=4ced3ab7094b62be2a0e843a2d4b4111
 
@@ -47,7 +47,7 @@ MAKE_ARGS:= \
 	CC="$(TARGET_CC)" \
 	LD="$(TARGET_CC)" \
 	CFLAGS="$(TARGET_CFLAGS) -DLOW_MEMORY $(TARGET_CPPFLAGS) -I$(STAGING_DIR)/usr/lib/libiconv-full/include -I$(BUILD_DIR)/$(WITH_ASTERISK)/include -DHAVE_CONFIG_H -I. -fPIC" \
-	LDFLAGS="$(TARGET_LDFLAGS)" \
+	LDFLAGS="$(TARGET_LDFLAGS) -L$(STAGING_DIR)/usr/lib/libiconv-full/lib" \
 	DESTDIR="$(PKG_INSTALL_DIR)/usr/lib/asterisk/modules"
 
 define Build/Configure
