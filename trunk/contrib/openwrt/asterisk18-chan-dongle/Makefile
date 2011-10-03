@@ -46,7 +46,7 @@ endef
 MAKE_ARGS:= \
 	CC="$(TARGET_CC)" \
 	LD="$(TARGET_CC)" \
-	CFLAGS="$(TARGET_CFLAGS) -DLOW_MEMORY $(TARGET_CPPFLAGS) -I$(STAGING_DIR)/usr/lib/libiconv-full/include -I$(BUILD_DIR)/$(WITH_ASTERISK)/include -DHAVE_CONFIG_H -I. -fPIC" \
+	CFLAGS="$(TARGET_CFLAGS) -DLOW_MEMORY -D_XOPEN_SOURCE=600 $(TARGET_CPPFLAGS) -I$(STAGING_DIR)/usr/lib/libiconv-full/include -I$(BUILD_DIR)/$(WITH_ASTERISK)/include -DHAVE_CONFIG_H -I. -fPIC" \
 	LDFLAGS="$(TARGET_LDFLAGS) -L$(STAGING_DIR)/usr/lib/libiconv-full/lib -liconv" \
 	DESTDIR="$(PKG_INSTALL_DIR)/usr/lib/asterisk/modules"
 
