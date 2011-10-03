@@ -1583,8 +1583,10 @@ static int at_response_cgmm (struct pvt* pvt, const char* str)
 		"E160X",
 		"E150",
 		"E173",
+
 		"E1552",
 		"E171",
+		"E153",
 	};
 
 	ast_copy_string (pvt->model, str, sizeof (pvt->model));
