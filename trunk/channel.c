@@ -809,7 +809,7 @@ static int channel_write (struct ast_channel* channel, struct ast_frame* f)
 				gains[0] /= gains[1];
 				gains[1] = 0;
 			}
-	
+
 			for(count = 0; count < ITEMS_OF(gains); ++count)
 			{
 				if(gains[count] > 1 || gains[count] < -1)
@@ -819,9 +819,7 @@ static int channel_write (struct ast_channel* channel, struct ast_frame* f)
 					}
 			}
 		}
-		
 
-		
 
 		if (pvt->a_timer)
 		{
