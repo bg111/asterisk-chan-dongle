@@ -898,6 +898,7 @@ static int at_response_clcc (struct pvt* pvt, char* str)
 
 		for(;;)
 		{
+			p = strchr(str, '\r');
 			if(at_parse_clcc(str, &call_idx, &dir, &state, &mode, &mpty, &number, &type) == 0)
 			{
 				ast_debug (3, "[%s] CLCC callidx %u dir %u state %u mode %u mpty %u number %s type %u\n",  PVT_ID(pvt), call_idx, dir, state, mode, mpty, number, type);
@@ -986,7 +987,6 @@ static int at_response_clcc (struct pvt* pvt, char* str)
 			{
 				ast_log (LOG_ERROR, "[%s] can't parse CLCC line '%s'\n", PVT_ID(pvt), str);
 			}
-			p = strchr(str, '\r');
 			if(p)
 			{
 				++p;
