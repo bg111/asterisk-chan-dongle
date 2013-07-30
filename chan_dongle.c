@@ -1308,9 +1308,10 @@ EXPORT_DEF const char * sys_submode2str(int sys_submode)
 	return enum2str_def(sys_submode, sys_submodes, ITEMS_OF (sys_submodes), "Unknown");
 }
 
-#/* */
+#/* BUGFIX of https://code.google.com/p/asterisk-chan-dongle/issues/detail?id=118 */
 EXPORT_DEF char* rssi2dBm(int rssi, char * buf, unsigned len)
 {
+#if 0 /* old code */
 	if(rssi <= 0)
 	{
 		snprintf(buf, len, "<= -125 dBm");
@@ -1327,9 +1328,26 @@ EXPORT_DEF char* rssi2dBm(int rssi, char * buf, unsigned len)
 	{
 		snprintf(buf, len, "unknown");
 	}
+#else
+	if(rssi <= 0)
+	{
+		snprintf(buf, len, "<= -113 dBm");
+	}
+	else if(rssi <= 30)
+	{
+		snprintf(buf, len, "%d dBm", 2 * rssi - 113);
+	}
+	else if(rssi == 31)
+	{
+		snprintf(buf, len, ">= -51 dBm");
+	}
+	else
+	{
+		snprintf(buf, len, "unknown or unmeasurable");
+	}
+#endif
 	return buf;
 }
-
 
 /* Module */
 
