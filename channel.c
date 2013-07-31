@@ -1302,6 +1302,17 @@ static int channel_func_read(struct ast_channel* channel, attribute_unused const
 		ast_copy_string(buf, buffer, len);
 	}
 */
+	else if (!strcasecmp(data, "dtmf"))
+	{
+		while (ast_mutex_trylock (&pvt->lock))
+		{
+			CHANNEL_DEADLOCK_AVOIDANCE (channel);
+		}
+		const char * dtmf = dc_dtmf_setting2str(pvt->real_dtmf);
+		ast_mutex_unlock(&pvt->lock);
+
+		ast_copy_string(buf, dtmf, len);
+	}
 	else
 		ret = -1;
 
@@ -1357,6 +1368,30 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
 			ret = -1;
 		}
 		ast_mutex_unlock(&cpvt->pvt->lock);
+	}
+	else if (!strcasecmp(data, "dtmf"))
+	{
+		int val = dc_dtmf_str2setting(value);
+
+		if(val >= 0)
+		{
+			while (ast_mutex_trylock (&cpvt->pvt->lock))
+			{
+				CHANNEL_DEADLOCK_AVOIDANCE (channel);
+			}
+
+			if((dc_dtmf_setting_t)val != pvt->real_dtmf)
+			{
+				pvt_dsp_setup(pvt, PVT_ID(pvt), val);
+			}
+			
+			ast_mutex_unlock(&cpvt->pvt->lock);
+		}
+		else
+		{
+			ast_log(LOG_WARNING, "Invalid value for %s(dtmf).", function);
+			return -1;
+		}
 	}
 	else
 		ret = -1;

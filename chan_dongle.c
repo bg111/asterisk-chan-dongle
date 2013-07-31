@@ -1352,10 +1352,10 @@ EXPORT_DEF char* rssi2dBm(int rssi, char * buf, unsigned len)
 /* Module */
 
 #/* */
-static void pvt_dsp_setup(struct pvt * pvt, const pvt_config_t * settings)
+EXPORT_DEF void pvt_dsp_setup(struct pvt * pvt, const char * id, dc_dtmf_setting_t dtmf_new)
 {
 	/* first remove dsp if off or changed */
-	if(SCONFIG(settings, dtmf) != CONF_SHARED(pvt, dtmf))
+	if(dtmf_new != CONF_SHARED(pvt, dtmf))
 	{
 		if(pvt->dsp)
 		{
@@ -1365,13 +1365,13 @@ static void pvt_dsp_setup(struct pvt * pvt, const pvt_config_t * settings)
 	}
 
 	/* wake up and initialize dsp */
-	if(SCONFIG(settings, dtmf) != DC_DTMF_SETTING_OFF)
+	if(dtmf_new != DC_DTMF_SETTING_OFF)
 	{
 		pvt->dsp = ast_dsp_new();
 		if(pvt->dsp)
 		{
 			int digitmode = DSP_DIGITMODE_DTMF;
-			if(SCONFIG(settings, dtmf) == DC_DTMF_SETTING_RELAX)
+			if(dtmf_new == DC_DTMF_SETTING_RELAX)
 				digitmode |= DSP_DIGITMODE_RELAXDTMF;
 
 			ast_dsp_set_features(pvt->dsp, DSP_FEATURE_DIGIT_DETECT);
@@ -1379,9 +1379,10 @@ static void pvt_dsp_setup(struct pvt * pvt, const pvt_config_t * settings)
 		}
 		else
 		{
-			ast_log(LOG_ERROR, "[%s] Can't setup dsp for dtmf detection, ignored\n", UCONFIG(settings, id));
+			ast_log(LOG_ERROR, "[%s] Can't setup dsp for dtmf detection, ignored\n", id);
 		}
 	}
+	pvt->real_dtmf = dtmf_new;
 }
 
 static struct pvt * pvt_create(const pvt_config_t * settings)
@@ -1409,7 +1410,7 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 
 		pvt->desired_state = SCONFIG(settings, initstate);
 
-		pvt_dsp_setup(pvt, settings);
+		pvt_dsp_setup(pvt, UCONFIG(settings, id), SCONFIG(settings, dtmf));
 
 		/* and copy settings */
 		memcpy(&pvt->settings, settings, sizeof(pvt->settings));
@@ -1489,7 +1490,7 @@ static int pvt_reconfigure(struct pvt * pvt, const pvt_config_t * settings, rest
 			pvt->restart_time = rv ? RESTATE_TIME_NOW : when;
 		}
 
-		pvt_dsp_setup(pvt, settings);
+		pvt_dsp_setup(pvt, UCONFIG(settings, id), SCONFIG(settings, dtmf));
 
 		/* and copy settings */
 		memcpy(&pvt->settings, settings, sizeof(pvt->settings));
