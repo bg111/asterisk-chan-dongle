@@ -1,0 +1,1 @@
+Please use http://wiki.e1550.mobi/
