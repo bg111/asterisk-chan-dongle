@@ -129,7 +129,10 @@ static int lock_create(const char * lockfile)
 		len = snprintf(pidb, sizeof(pidb), "%d %d", getpid(), fd);
 		len = write(fd, pidb, len);
 		close(fd);
+	} else {
+		ast_log(LOG_ERROR, "open('%s') failed: %s\n", lockfile, strerror(errno));
 	}
+
 	return len;
 }
 
