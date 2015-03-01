@@ -1,7 +1,7 @@
 /*
  * chan_dongle
  *
- * Copyright (C) 2011
+ * Copyright (C) 2011-2015
  * bg <bg_one@mail.ru>
  * http://www.e1550.mobi
  *
@@ -12,10 +12,6 @@
  *
  * Dmitry Vagin <dmitry2004@yandex.ru>
  *
- * Copyright (C) 2011
- * bg <bg_one@mail.ru>
- * http://www.e1550.mobi
-
  * chan_datacard is based on chan_mobile by Digium
  * (Mark Spencer <markster@digium.com>)
  *
@@ -936,6 +932,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 	size_t last_used;
 	struct pvt * pvt;
 	struct pvt * found = NULL;
+	struct pvt * round_robin[MAXDONGLEDEVICES];
 
 	*exists = 0;
 	/* Find requested device and make sure it's connected and initialized. */
@@ -970,17 +967,17 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 		group = (int) strtol (&resource[1], (char**) NULL, 10);
 		if (errno != EINVAL)
 		{
-			ast_mutex_lock(&state->round_robin_mtx);
+//			ast_mutex_lock(&state->round_robin_mtx);
 
 			/* Generate a list of all availible devices */
-			j = ITEMS_OF (state->round_robin);
+			j = ITEMS_OF (round_robin);
 			c = 0; last_used = 0;
 			AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
 			{
 				ast_mutex_lock (&pvt->lock);
 				if (CONF_SHARED(pvt, group) == group)
 				{
-					state->round_robin[c] = pvt;
+					round_robin[c] = pvt;
 					if (pvt->group_last_used == 1)
 					{
 						pvt->group_last_used = 0;
@@ -1006,7 +1003,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 					j = 0;
 				}
 
-				pvt = state->round_robin[j];
+				pvt = round_robin[j];
 				*exists = 1;
 
 				ast_mutex_lock (&pvt->lock);
@@ -1019,22 +1016,22 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				ast_mutex_unlock (&pvt->lock);
 			}
 
-			ast_mutex_unlock(&state->round_robin_mtx);
+//			ast_mutex_unlock(&state->round_robin_mtx);
 		}
 	}
 	else if (((resource[0] == 'p') || (resource[0] == 'P')) && resource[1] == ':')
 	{
-		ast_mutex_lock(&state->round_robin_mtx);
+//		ast_mutex_lock(&state->round_robin_mtx);
 
 		/* Generate a list of all availible devices */
-		j = ITEMS_OF(state->round_robin);
+		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
 		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
 		{
 			ast_mutex_lock (&pvt->lock);
 			if (!strcmp (pvt->provider_name, &resource[2]))
 			{
-				state->round_robin[c] = pvt;
+				round_robin[c] = pvt;
 				if (pvt->prov_last_used == 1)
 				{
 					pvt->prov_last_used = 0;
@@ -1060,7 +1057,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				j = 0;
 			}
 
-			pvt = state->round_robin[j];
+			pvt = round_robin[j];
 			*exists = 1;
 
 			ast_mutex_lock (&pvt->lock);
@@ -1073,14 +1070,14 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_unlock (&pvt->lock);
 		}
 
-		ast_mutex_unlock(&state->round_robin_mtx);
+//		ast_mutex_unlock(&state->round_robin_mtx);
 	}
 	else if (((resource[0] == 's') || (resource[0] == 'S')) && resource[1] == ':')
 	{
-		ast_mutex_lock(&state->round_robin_mtx);
+//		ast_mutex_lock(&state->round_robin_mtx);
 
 		/* Generate a list of all availible devices */
-		j = ITEMS_OF(state->round_robin);
+		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
 		i = strlen (&resource[2]);
 
@@ -1089,7 +1086,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_lock (&pvt->lock);
 			if (!strncmp (pvt->imsi, &resource[2], i))
 			{
-				state->round_robin[c] = pvt;
+				round_robin[c] = pvt;
 				if (pvt->sim_last_used == 1)
 				{
 					pvt->sim_last_used = 0;
@@ -1115,7 +1112,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				j = 0;
 			}
 
-			pvt = state->round_robin[j];
+			pvt = round_robin[j];
 			*exists = 1;
 
 			ast_mutex_lock (&pvt->lock);
@@ -1128,7 +1125,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_unlock (&pvt->lock);
 		}
 
-		ast_mutex_unlock(&state->round_robin_mtx);
+//		ast_mutex_unlock(&state->round_robin_mtx);
 	}
 	else if (((resource[0] == 'i') || (resource[0] == 'I')) && resource[1] == ':')
 	{
@@ -1655,7 +1652,7 @@ static int public_state_init(struct public_state * state)
 	ast_mutex_init(&state->discovery_lock);
 
 	state->discovery_thread = AST_PTHREADT_NULL;
-	ast_mutex_init(&state->round_robin_mtx);
+//	ast_mutex_init(&state->round_robin_mtx);
 
 	if(reload_config(state, 0, RESTATE_TIME_NOW, NULL) == 0)
 	{
@@ -1689,7 +1686,7 @@ static int public_state_init(struct public_state * state)
 		ast_log (LOG_ERROR, "Errors reading config file " CONFIG_FILE ", Not loading module\n");
 	}
 
-	ast_mutex_destroy(&state->round_robin_mtx);
+//	ast_mutex_destroy(&state->round_robin_mtx);
 	ast_mutex_destroy(&state->discovery_lock);
 	AST_RWLIST_HEAD_DESTROY(&state->devices);
 
@@ -1713,7 +1710,7 @@ static void public_state_fini(struct public_state * state)
 	discovery_stop(state);
 	devices_destroy(state);
 	
-	ast_mutex_destroy(&state->round_robin_mtx);
+//	ast_mutex_destroy(&state->round_robin_mtx);
 	ast_mutex_destroy(&state->discovery_lock);
 	AST_RWLIST_HEAD_DESTROY(&state->devices);
 }
