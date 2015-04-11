@@ -1,0 +1,1 @@
+asterisk's huawei 3g dongle channel driver
