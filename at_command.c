@@ -35,6 +35,8 @@ static const char cmd_chld2[]    = "AT+CHLD=2\r";
 static const char cmd_clcc[]     = "AT+CLCC\r";
 static const char cmd_ddsetex2[] = "AT^DDSETEX=2\r";
 
+static int cpms_sm = 0;
+
 /*!
  * \brief Format and fill generic command
  * \param cmd -- the command structure
@@ -133,7 +135,7 @@ EXPORT_DEF int at_enque_initialization(struct cpvt* cpvt, at_cmd_t from_command)
 	static const char cmd19[] = "AT+CSSN=1,1\r";
 	static const char cmd21[] = "AT+CSCS=\"UCS2\"\r";
 
-	static const char cmd22[] = "AT+CPMS=\"ME\",\"ME\",\"ME\"\r";
+	static       char cmd22[] = "AT+CPMS=\"ME\",\"ME\",\"ME\"\r";
 	static const char cmd23[] = "AT+CNMI=2,1,0,0,0\r";
 	static const char cmd24[] = "AT+CSQ\r";
 
@@ -193,6 +195,8 @@ EXPORT_DEF int at_enque_initialization(struct cpvt* cpvt, at_cmd_t from_command)
 			continue;
 		if(st_cmds[in].cmd == CMD_AT_U2DIAG && CONF_SHARED(pvt, u2diag) == -1)
 			continue;
+		if(st_cmds[in].cmd == CMD_AT_CPMS && cpms_sm)
+			strcpy(cmd22, "AT+CPMS=\"SM\",\"SM\",\"SM\"\r");
 
 		memcpy(&cmds[out], &st_cmds[in], sizeof(st_cmds[in]));
 
@@ -224,6 +228,20 @@ failure:
 	if(ptmp2)
 		ast_free(ptmp2);
 	return err;
+}
+
+/* Set "AT+CPMS=\"SM\",\"SM\",\"SM\"\r"
+	0: Already set
+	1: Successfully set
+*/
+EXPORT_DEF int set_cpms_sm ()
+{
+	if (!cpms_sm)
+	{
+		cpms_sm = 1;
+		return 1;
+	}
+	return 0;
 }
 
 /*!
