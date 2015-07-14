@@ -44,7 +44,7 @@ static int lock_build(const char * devname, char * buf, unsigned length)
 		basename = devname;
 
 	/* TODO: use asterisk build settings for /var/lock */
-	return snprintf(buf, length, "/var/lock/LOCK..%s", basename);
+	return snprintf(buf, length, "/var/lock/LCK..%s", basename);
 }
 
 #/* return 0 on error */
