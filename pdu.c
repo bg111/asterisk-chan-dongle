@@ -182,6 +182,7 @@
 */
 
 #define NUMBER_TYPE_INTERNATIONAL		0x91
+#define NUMBER_TYPE_ALPHANUMERIC		0xd0
 
 /* Message Type Indicator Parameter */
 #define PDUTYPE_MTI_SHIFT			0
@@ -459,12 +460,22 @@ static int pdu_parse_number(char ** pdu, size_t * pdu_length, unsigned digits, i
 			{
 				digit = pdu_code2digit(pdu[0][1]);
 				if(digit <= 0)
-					return -1;
+				{
+					if(*toa == NUMBER_TYPE_ALPHANUMERIC)
+						digit = pdu[0][1];
+					else
+						return -1;
+				}
 				*number++ = digit;
 
 				digit = pdu_code2digit(pdu[0][0]);
 				if(digit < 0 || (digit == 0 && (syms != 2 || (digits & 0x1) == 0)))
-					return -1;
+				{
+					if(*toa == NUMBER_TYPE_ALPHANUMERIC)
+						digit = pdu[0][0];
+					else
+						return -1;
+				}
 
 				*number++ = digit;
 			}
