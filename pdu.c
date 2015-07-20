@@ -453,31 +453,30 @@ static int pdu_parse_number(char ** pdu, size_t * pdu_length, unsigned digits, i
 		unsigned syms = ROUND_UP2(digits);
 		if(syms <= *pdu_length)
 		{
-			char digit;
-			if(*toa == NUMBER_TYPE_INTERNATIONAL)
-				*number++ = '+';
-			for(; syms > 0; syms -= 2, *pdu += 2, *pdu_length -= 2)
+			if(*toa == NUMBER_TYPE_ALPHANUMERIC)
 			{
-				digit = pdu_code2digit(pdu[0][1]);
-				if(digit <= 0)
+				memcpy(number, *pdu, syms);
+				*pdu += syms;
+				*pdu_length -= syms;
+				number += syms;
+			}
+			else
+			{
+				char digit;
+				if(*toa == NUMBER_TYPE_INTERNATIONAL)
+					*number++ = '+';
+				for(; syms > 0; syms -= 2, *pdu += 2, *pdu_length -= 2)
 				{
-					if(*toa == NUMBER_TYPE_ALPHANUMERIC)
-						digit = pdu[0][1];
-					else
+					digit = pdu_code2digit(pdu[0][1]);
+					if(digit <= 0)
 						return -1;
-				}
-				*number++ = digit;
+					*number++ = digit;
 
-				digit = pdu_code2digit(pdu[0][0]);
-				if(digit < 0 || (digit == 0 && (syms != 2 || (digits & 0x1) == 0)))
-				{
-					if(*toa == NUMBER_TYPE_ALPHANUMERIC)
-						digit = pdu[0][0];
-					else
+					digit = pdu_code2digit(pdu[0][0]);
+					if(digit < 0 || (digit == 0 && (syms != 2 || (digits & 0x1) == 0)))
 						return -1;
+					*number++ = digit;
 				}
-
-				*number++ = digit;
 			}
 			if((digits & 0x1) == 0)
 				*number = 0;
@@ -700,7 +699,7 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 					if(field_len > 0)
 					{
 						int pid = pdu_parse_byte(pdu, &pdu_length);
-						*oa_enc = STR_ENCODING_7BIT;
+						*oa_enc = (oa_toa == NUMBER_TYPE_ALPHANUMERIC) ? STR_ENCODING_7BIT_HEX : STR_ENCODING_7BIT;
 						if(pid >= 0)
 						{
 						   /* TODO: support other types of messages */
