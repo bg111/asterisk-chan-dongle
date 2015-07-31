@@ -15,7 +15,7 @@
 #include <asterisk.h>
 #include <asterisk/cli.h>			/* struct ast_cli_entry; struct ast_cli_args */
 #include <asterisk/callerid.h>			/* ast_describe_caller_presentation() */
-#include <asterisk/version.h>			/* ASTERISK_VERSION_NUM */
+#include <asterisk/ast_version.h>		/* ASTERISK_VERSION_NUM */
 
 #include "cli.h"
 #include "chan_dongle.h"			/* devices */
@@ -503,7 +503,7 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		}
 	}
 
-	msg = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, 0, &status, &msgid);
+	msg = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, "1", &status, &msgid);
 	ast_free (buf);
 
 	if(status)

@@ -30,6 +30,7 @@
 #include "pdu.h"			/* build_pdu() */
 
 static const char cmd_at[] 	 = "AT\r";
+static const char cmd_cnma[] 	 = "AT+CNMA\r";
 static const char cmd_chld1x[]   = "AT+CHLD=1%d\r";
 static const char cmd_chld2[]    = "AT+CHLD=2\r";
 static const char cmd_clcc[]     = "AT+CLCC\r";
@@ -113,6 +114,9 @@ EXPORT_DEF int at_enque_initialization(struct cpvt* cpvt, at_cmd_t from_command)
 	static const char cmd2[] = "ATZ\r";
 	static const char cmd3[] = "ATE0\r";
 
+	static const char cmd_fish[] = "AT+CSMS=1\r";
+	static const char cmd_soup[] = "AT+CSMP=49,\r";
+
 	static const char cmd5[] = "AT+CGMI\r";
 	static const char cmd6[] = "AT+CSCA?\r";
 	static const char cmd7[] = "AT+CGMM\r";
@@ -133,8 +137,8 @@ EXPORT_DEF int at_enque_initialization(struct cpvt* cpvt, at_cmd_t from_command)
 	static const char cmd19[] = "AT+CSSN=1,1\r";
 	static const char cmd21[] = "AT+CSCS=\"UCS2\"\r";
 
-	static const char cmd22[] = "AT+CPMS=\"ME\",\"ME\",\"ME\"\r";
-	static const char cmd23[] = "AT+CNMI=2,1,0,0,0\r";
+	static const char cmd22[] = "AT+CPMS=\"SM\",\"SM\",\"SM\"\r";
+	static const char cmd23[] = "AT+CNMI=2,1,0,2,0\r";
 	static const char cmd24[] = "AT+CSQ\r";
 
 	static const at_queue_cmd_t st_cmds[] = {
@@ -157,6 +161,9 @@ EXPORT_DEF int at_enque_initialization(struct cpvt* cpvt, at_cmd_t from_command)
 		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, cmd15),		/* GSM registration status */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CNUM, cmd16),		/* Get Subscriber number */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CVOICE, cmd17),	/* read the current voice mode, and return sampling rate、data bit、frame period */
+
+		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, cmd_fish),
+		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, cmd_soup),
 
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, cmd6),		/* Get SMS Service center address */
 //		ATQ_CMD_DECLARE_ST(CMD_AT_CLIP, cmd18),		/* disable  Calling line identification presentation in unsolicited response +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validitity>]] */
@@ -261,17 +268,18 @@ EXPORT_DEF int at_enque_pdu(struct cpvt * cpvt, const char * pdu, attribute_unus
 		return -EINVAL;
 	}
 
-	at_cmd[1].data = ast_malloc(length + 2);
+	at_cmd[1].data = ast_malloc(length + 3);
 	if(!at_cmd[1].data)
 	{		
 		return -ENOMEM;
 	}
 
-	at_cmd[1].length = length + 1;
+	at_cmd[1].length = length + 2;
 
 	memcpy(at_cmd[1].data, pdu, length);
-	at_cmd[1].data[length] = 0x1A;
-	at_cmd[1].data[length+1] = 0x0;
+	at_cmd[1].data[length] =  0x1A;
+	at_cmd[1].data[length+1] = 0x1A;
+	at_cmd[1].data[length+2] = 0x0;
 		
 	at_cmd[0].length = snprintf(buf, sizeof(buf), "AT+CMGS=%d\r", (int)(pdulen / 2));
 	at_cmd[0].data = ast_strdup(buf);
@@ -705,6 +713,21 @@ EXPORT_DEF int at_enque_ping (struct cpvt * cpvt)
 EXPORT_DEF int at_enque_user_cmd(struct cpvt* cpvt, const char * input)
 {
 	return at_enque_generic(cpvt, CMD_USER, 1, "%s\r", input);
+}
+
+/*!
+ * \brief Enque commands for acking SMS
+ * \param cpvt -- cpvt structure
+ * \return 0 on success
+ */
+EXPORT_DEF int at_enque_ack_sms (struct cpvt* cpvt)
+{
+	int err;
+	at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_STIT(CMD_AT_CNMA, cmd_cnma, ATQ_CMD_TIMEOUT_40S, 0),
+		};
+
+        return at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 1);
 }
 
 /*!

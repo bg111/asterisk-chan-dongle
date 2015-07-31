@@ -3,7 +3,7 @@ PROJS =  chan_dongles.so
 
 chan_donglem_so_OBJS =  app.o at_command.o at_parse.o at_queue.o at_read.o at_response.o \
 	chan_dongle.o channel.o char_conv.o cli.o helpers.o manager.o \
-	memmem.o ringbuffer.o cpvt.o dc_config.o pdu.o mixbuffer.o pdiscovery.o
+	memmem.o ringbuffer.o cpvt.o dc_config.o pdu.o mixbuffer.o pdiscovery.o at_log.o
 
 chan_dongles_so_OBJS = single.o
 
@@ -13,7 +13,7 @@ discovery_OBJS = tools/discovery.o tools/tty.o
 
 SOURCES = app.c at_command.c at_parse.c at_queue.c at_read.c at_response.c \
 	chan_dongle.c channel.c char_conv.c cli.c cpvt.c dc_config.c helpers.c \
-	manager.c memmem.c ringbuffer.c single.c pdu.c mixbuffer.c pdiscovery.c
+	manager.c memmem.c ringbuffer.c single.c pdu.c mixbuffer.c pdiscovery.c at_log.c
 
 test_SOURCES = test/test1.c test/parse.c
 tools_SOURCES = tools/discovery.c tools/tty.c
@@ -21,7 +21,7 @@ tools_SOURCES = tools/discovery.c tools/tty.c
 HEADERS = app.h at_command.h at_parse.h at_queue.h at_read.h at_response.h \
 	chan_dongle.h channel.h char_conv.h cli.h cpvt.h dc_config.h export.h \
 	helpers.h manager.h memmem.h ringbuffer.h pdu.h mixbuffer.h pdiscovery.h \
-	mutils.h
+	mutils.h at_log.h
 
 tools_HEADERS = tools/tty.h
 
@@ -37,8 +37,8 @@ RM = @RM@ -fr
 INSTALL = @INSTALL@
 CHMOD = chmod
 
-# -DAST_MODULE=\"$(PROJM)\" -D_THREAD_SAFE
-CFLAGS  = @CFLAGS@ -I$(srcdir) @CPPFLAGS@ @DEFS@ @AC_CFLAGS@
+DEFS    = -DASTERISK_VERSION_NUM=110000
+CFLAGS  = @CFLAGS@ -I$(srcdir) @CPPFLAGS@ $(DEFS) @DEFS@ @AC_CFLAGS@
 LDFLAGS = @LDFLAGS@ 
 SOLINK  = @SOLINK@
 LIBS    = @LIBS@

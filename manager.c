@@ -245,6 +245,20 @@ static int manager_send_pdu (struct mansession* s, const struct message* m)
 	return 0;
 }
 
+EXPORT_DEF void manager_event_sms_reference(const char * devname,  const void * id, int reference)
+{
+
+	manager_event (EVENT_FLAG_CALL, "DongleSMSReference",
+		"Device: %s\r\n"
+		"ID: %p\r\n"
+		"Reference: %d\r\n",
+		devname,
+		id,
+		reference
+	);
+}
+
+
 #/* */
 EXPORT_DEF void manager_event_sent_notify(const char * devname, const char * type, const void * id, const char * result)
 {
@@ -437,13 +451,32 @@ EXPORT_DEF void manager_event_new_sms (const char * devname, char* number, char*
  * \param message_base64 a null terminated buffer containing the base64 encoded message
  */
 
-EXPORT_DEF void manager_event_new_sms_base64 (const char * devname, char * number, char * message_base64)
+EXPORT_DEF void manager_event_new_sms_base64 (const char * devname, char * number, char * message_base64, char *pdu)
 {
 	manager_event (EVENT_FLAG_CALL, "DongleNewSMSBase64",
 		"Device: %s\r\n"
 		"From: %s\r\n"
-		"Message: %s\r\n",
-		devname, number, message_base64
+		"Message: %s\r\n"
+		"PDU: %s\r\n",
+		devname, number, message_base64, pdu
+	);
+}
+
+
+/*!
+ * \brief Send a DongleNewSMSReceipt event to the manager
+ * \param pvt a pvt structure
+ * \param number a null terminated buffer containing the from number
+ * \param message_base64 a null terminated buffer containing the base64 encoded message
+ */
+
+EXPORT_DEF void manager_event_new_sms_receipt (const char * devname, char * number, char *pdu)
+{
+	manager_event (EVENT_FLAG_CALL, "DongleNewSMSReceipt",
+		"Device: %s\r\n"
+		"From: %s\r\n"
+		"PDU: %s\r\n",
+		devname, number, pdu 
 	);
 }
 
@@ -731,9 +764,12 @@ static const struct dongle_manager
 EXPORT_DEF void manager_register()
 {
 	unsigned i;
+	struct ast_module* module = self_module();
+
 	for(i = 0; i < ITEMS_OF(dcm); i++)
 	{
-		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, dcm[i].brief, dcm[i].desc);
+		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func,
+			module, dcm[i].brief, dcm[i].desc);
 	}
 }
 

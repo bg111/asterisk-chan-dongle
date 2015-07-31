@@ -35,6 +35,7 @@ typedef enum {
 	CMD_AT_CMGD,
 	CMD_AT_CMGF,
 	CMD_AT_CMGR,
+	CMD_AT_CNMA,
 
 	CMD_AT_CMGS,
 	CMD_AT_SMSTEXT,
@@ -104,6 +105,7 @@ INLINE_DECL const char* at_cmd2str (at_cmd_t cmd)
 		"AT+CMGD",
 		"AT+CMGF",
 		"AT+CMGR",
+		"AT+CNMA",
 
 		"AT+CMGS",
 		"SMSTEXT",
@@ -151,6 +153,7 @@ EXPORT_DECL int at_enque_initialization(struct cpvt * cpvt, at_cmd_t from_comman
 EXPORT_DECL int at_enque_ping (struct cpvt * cpvt);
 EXPORT_DECL int at_enque_cops (struct cpvt * cpvt);
 EXPORT_DECL int at_enque_sms (struct cpvt * cpvt, const char * number, const char * msg, unsigned validity_min, int report_req, void ** id);
+EXPORT_DECL int at_enque_ack_sms (struct cpvt * cpvt);
 EXPORT_DECL int at_enque_pdu (struct cpvt * cpvt, const char * pdu, attribute_unused const char *, attribute_unused unsigned, attribute_unused int, void ** id);
 EXPORT_DECL int at_enque_ussd (struct cpvt * cpvt, const char * code, attribute_unused const char *, attribute_unused unsigned, attribute_unused int, void ** id);
 EXPORT_DECL int at_enque_dtmf (struct cpvt * cpvt, char digit);

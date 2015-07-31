@@ -259,6 +259,47 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
  * \return -1 on error (parse error) or the index of the new sms message
  */
 
+EXPORT_DEF int at_parse_cdsi (const char* str)
+{
+	int index;
+
+	/*
+	 * parse cmti info in the following format:
+	 * +CDSI: <mem>,<index> 
+	 */
+
+	return sscanf (str, "+CDSI: %*[^,],%u", &index) == 1 ? index : -1;
+}
+
+/*!
+ * \brief Parse a CMTI notification
+ * \param str -- string to parse (null terminated)
+ * \param len -- string lenght
+ * @note str will be modified when the CMTI message is parsed
+ * \return -1 on error (parse error) or the index of the new sms message
+ */
+
+EXPORT_DEF int at_parse_cmgs (const char* str)
+{
+	int reference;
+
+	/*
+	 * parse cmti info in the following format:
+	 * +CMTS: <reference> 
+	 */
+
+	return sscanf (str, "+CMGS: %u", &reference) == 1 ? reference : -1;
+}
+
+
+/*!
+ * \brief Parse a CMTI notification
+ * \param str -- string to parse (null terminated)
+ * \param len -- string lenght
+ * @note str will be modified when the CMTI message is parsed
+ * \return -1 on error (parse error) or the index of the new sms message
+ */
+
 EXPORT_DEF int at_parse_cmti (const char* str)
 {
 	int index;
@@ -271,8 +312,189 @@ EXPORT_DEF int at_parse_cmti (const char* str)
 	return sscanf (str, "+CMTI: %*[^,],%u", &index) == 1 ? index : -1;
 }
 
+static void pdu_copy(char *str, size_t tpdu_length, char *pdu, size_t pdu_length)
+{
+char *ppdu;
+size_t len;
+int sca_length;
 
-static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc)
+while(*str && isspace(*str)) str++;
+
+len=strlen(str);
+
+ppdu=str;
+sca_length=pdu_parse_sca(&ppdu,&len);
+
+len=strlen(str);
+
+//ast_log(LOG_NOTICE,"tpdu_length=%d sca_length=%d  len=%d\n",(int) tpdu_length,(int) sca_length,len);
+
+if (sca_length<0) return;
+
+ppdu=pdu;
+*pdu=0;
+
+len=(tpdu_length*2)+sca_length;
+
+pdu_length--;
+
+while (len--) {
+if (!*str || !pdu_length) { *pdu=0; break; }
+
+*(ppdu++)=*(str++);
+pdu_length--;
+}
+
+*ppdu=0;
+//ast_log(LOG_NOTICE,"pdu=%s\n",pdu);
+
+}
+
+
+static const char* parse_cds_pdu(char** str, attribute_unused size_t len, char* oa, size_t oa_len, str_encoding_t* oa_enc, char *pdu, size_t pdu_len)
+{
+	/*
+	 * parse cds info in the following PDU format
+	 * +CDS: TPDU_length<CR><LF>
+	 * SMSC_number_and_TPDU<CR><LF><CR><LF>
+	 * OK<CR><LF>
+	 *
+	 *	sample
+	 * +CDS: 31
+	 * 07911234567890F3040B911234556780F20008012150220040210C041F04400438043204350442<CR><LF><CR><LF>
+	 * OK<CR><LF>
+	 */
+
+	char delimiters[] = "\n";
+	char * marks[STRLEN(delimiters)];
+	char * end;
+	size_t tpdu_length;
+
+	//ast_log (LOG_NOTICE, "[chan_dongle] recv pdu=%s\n",*str);
+
+	if(mark_line(*str, delimiters, marks) == ITEMS_OF(marks))
+	{
+		tpdu_length = strtol(*str, &end, 10);
+		if(tpdu_length <= 0 || end[0] != '\r')
+			return "Invalid TPDU length in CMGR PDU status line";
+		*str = marks[0] + 1;
+		pdu_copy(*str,tpdu_length,pdu,pdu_len);
+		return pdu_parse(str, tpdu_length, oa, oa_len, oa_enc, NULL, NULL);
+	}
+
+
+	return "Can't parse +CMT response";
+}
+
+/*!
+ * \brief Parse a CDS message
+ * \param str -- pointer to pointer of string to parse (null terminated)
+ * \param len -- string lenght
+ * \param number -- a pointer to a char pointer which will store the from number
+ * \param pdu --  a pointer to a char buffer which will store the raw pdu
+ * \param pdu_len -- size of pdu buffer
+ * @note str will be modified when the CMGR message is parsed
+ * \retval  0 success
+ * \retval -1 parse error
+ */
+
+EXPORT_DEF const char * at_parse_cds(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char *pdu, size_t pdu_len)
+{
+	const char* rv = "Can't parse +CMT response line";
+
+	/* skip "+CDS:" */
+	*str += 5;
+	len -= 5;
+
+	/* skip leading spaces */
+	while(len > 0 && str[0][0] == ' ')
+	{
+		(*str)++;
+		len--;
+	}
+
+	if(len > 0)
+	{
+		rv = parse_cds_pdu(str, len, oa, oa_len, oa_enc, pdu, pdu_len);
+	}
+
+	return rv;
+}
+
+
+static const char* parse_cmt_pdu(char** str, attribute_unused size_t len, char* oa, size_t oa_len, str_encoding_t* oa_enc, char** msg, str_encoding_t* msg_enc, char *pdu, size_t pdu_len)
+{
+	/*
+	 * parse cmt info in the following PDU format
+	 * +CMT: TPDU_length<CR><LF>
+	 * SMSC_number_and_TPDU<CR><LF><CR><LF>
+	 * OK<CR><LF>
+	 *
+	 *	sample
+	 * +CMT: ,31
+	 * 07911234567890F3040B911234556780F20008012150220040210C041F04400438043204350442<CR><LF><CR><LF>
+	 * OK<CR><LF>
+	 */
+
+	char delimiters[] = ",\n";
+	char * marks[STRLEN(delimiters)];
+	char * end;
+	size_t tpdu_length;
+
+	//ast_log (LOG_NOTICE, "[chan_dongle] recv pdu=%s\n",*str);
+
+	if(mark_line(*str, delimiters, marks) == ITEMS_OF(marks))
+	{
+		tpdu_length = strtol(marks[0] + 1, &end, 10);
+		if(tpdu_length <= 0 || end[0] != '\r')
+			return "Invalid TPDU length in CMGR PDU status line";
+		*str = marks[1] + 1;
+		pdu_copy(*str,tpdu_length,pdu,pdu_len);
+		return pdu_parse(str, tpdu_length, oa, oa_len, oa_enc, msg, msg_enc);
+	}
+
+
+	return "Can't parse +CMT response";
+}
+
+/*!
+ * \brief Parse a CMT message
+ * \param str -- pointer to pointer of string to parse (null terminated)
+ * \param len -- string lenght
+ * \param number -- a pointer to a char pointer which will store the from number
+ * \param text -- a pointer to a char pointer which will store the message text
+ * \param pdu --  a pointer to a char buffer which will store the raw pdu
+ * \param pdu_len -- size of pdu buffer
+ * @note str will be modified when the CMGR message is parsed
+ * \retval  0 success
+ * \retval -1 parse error
+ */
+
+EXPORT_DEF const char * at_parse_cmt(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc, char *pdu, size_t pdu_len)
+{
+	const char* rv = "Can't parse +CMT response line";
+
+	/* skip "+CMT:" */
+	*str += 5;
+	len -= 5;
+
+	/* skip leading spaces */
+	while(len > 0 && str[0][0] == ' ')
+	{
+		(*str)++;
+		len--;
+	}
+
+	if(len > 0)
+	{
+		rv = parse_cmt_pdu(str, len, oa, oa_len, oa_enc, msg, msg_enc, pdu, pdu_len);
+	}
+
+	return rv;
+}
+
+
+static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc, char *pdu, size_t pdu_len)
 {
 	/*
 	 * parse cmgr info in the following TEXT format:
@@ -289,6 +511,8 @@ static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t o
 	char * marks[STRLEN(delimiters)];
 	size_t length;
 	
+	if (pdu_len) *pdu=0;
+
 	unsigned count = mark_line(*str, delimiters, marks);
 	if(count == ITEMS_OF(marks))
 	{
@@ -316,7 +540,7 @@ static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t o
 	return "Can't parse +CMGR response text";
 }
 
-static const char* parse_cmgr_pdu(char** str, attribute_unused size_t len, char* oa, size_t oa_len, str_encoding_t* oa_enc, char** msg, str_encoding_t* msg_enc)
+static const char* parse_cmgr_pdu(char** str, attribute_unused size_t len, char* oa, size_t oa_len, str_encoding_t* oa_enc, char** msg, str_encoding_t* msg_enc, char *pdu, size_t pdu_len)
 {
 	/*
 	 * parse cmgr info in the following PDU format
@@ -341,6 +565,7 @@ static const char* parse_cmgr_pdu(char** str, attribute_unused size_t len, char*
 		if(tpdu_length <= 0 || end[0] != '\r')
 			return "Invalid TPDU length in CMGR PDU status line";
 		*str = marks[2] + 1;
+		pdu_copy(*str,tpdu_length,pdu,pdu_len);
 		return pdu_parse(str, tpdu_length, oa, oa_len, oa_enc, msg, msg_enc);
 	}
 
@@ -358,7 +583,7 @@ static const char* parse_cmgr_pdu(char** str, attribute_unused size_t len, char*
  * \retval -1 parse error
  */
 
-EXPORT_DEF const char * at_parse_cmgr(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc)
+EXPORT_DEF const char * at_parse_cmgr(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc, char *pdu, size_t pdu_len)
 {
 	const char* rv = "Can't parse +CMGR response line";
 
@@ -376,10 +601,10 @@ EXPORT_DEF const char * at_parse_cmgr(char ** str, size_t len, char * oa, size_t
 	if(len > 0)
 	{
 		/* check PDU or TEXT mode */
-		const char* (*fptr)(char** str, size_t len, char* num, size_t num_len, str_encoding_t * oa_enc, char** msg, str_encoding_t * msg_enc);
+		const char* (*fptr)(char** str, size_t len, char* num, size_t num_len, str_encoding_t * oa_enc, char** msg, str_encoding_t * msg_enc, char * pdu, size_t pdu_len);
 		fptr = str[0][0] == '"' ? parse_cmgr_text : parse_cmgr_pdu;
 
-		rv = (*fptr)(str, len, oa, oa_len, oa_enc, msg, msg_enc);
+		rv = (*fptr)(str, len, oa, oa_len, oa_enc, msg, msg_enc, pdu, pdu_len);
 	}
 
 	return rv;

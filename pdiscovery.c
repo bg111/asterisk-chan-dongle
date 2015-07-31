@@ -65,8 +65,10 @@ struct discovery_cache {
 
 static const struct pdiscovery_device device_ids[] = {
 	{ 0x12d1, 0x1001, { 2, 1, /* 0 */ } },		/* E1550 and generic */
+	{ 0x12d1, 0x1003, { 1, 0, /* 0 */ } },		/* E160 */
 //	{ 0x12d1, 0x1465, { 2, 1, /* 0 */ } },		/* K3520 */
 	{ 0x12d1, 0x140c, { 3, 2, /* 0 */ } },		/* E17xx */
+	{ 0x12d1, 0x14ac, { 3, 1, /* 0 */ } },		/* E17xx */
 	{ 0x12d1, 0x1436, { 4, 3, /* 0 */ } },		/* E1750 */
 	{ 0x12d1, 0x1506, { 1, 2, /* 0 */ } },		/* E171 firmware 21.x : thanks Sergey Ivanov */
 };
@@ -559,7 +561,7 @@ static int pdiscovery_do_cmd(const struct pdiscovery_request * req, int fd, cons
 		timeout = PDISCOVERY_TIMEOUT;
 		rb_init(&rb, buf, sizeof(buf) - 1);
 		while(timeout > 0 && at_wait(fd, &timeout) != 0) {
-			iovcnt = at_read(fd, name, &rb);
+			iovcnt = at_read(NULL, fd, name, &rb);
 			if(iovcnt > 0) {
 				iovcnt = rb_read_all_iov(&rb, iov);
 				if(pdiscovery_handle_response(req, iov, iovcnt, res))

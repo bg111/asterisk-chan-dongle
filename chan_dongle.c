@@ -1,7 +1,7 @@
 /*
  * chan_dongle
  *
- * Copyright (C) 2011-2015
+ * Copyright (C) 2011
  * bg <bg_one@mail.ru>
  * http://www.e1550.mobi
  *
@@ -12,6 +12,10 @@
  *
  * Dmitry Vagin <dmitry2004@yandex.ru>
  *
+ * Copyright (C) 2011
+ * bg <bg_one@mail.ru>
+ * http://www.e1550.mobi
+
  * chan_datacard is based on chan_mobile by Digium
  * (Mark Spencer <markster@digium.com>)
  *
@@ -39,6 +43,7 @@
 #include <asterisk.h>
 ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 
+#include <asterisk/ast_version.h>
 #include <asterisk/stringfields.h>	/* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/manager.h>
 #include <asterisk/dsp.h>
@@ -67,6 +72,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 
 EXPORT_DEF const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
 EXPORT_DEF public_state_t * gpublic;
+EXPORT_DEF struct ast_format chan_dongle_format;
+EXPORT_DEF struct ast_format_cap * chan_dongle_format_cap;
 
 
 static int public_state_init(struct public_state * state);
@@ -108,7 +115,7 @@ static int lock_build(const char * devname, char * buf, unsigned length)
 		basename = devname;
 
 	/* NOTE: use system system wide lock directory */
-	return snprintf(buf, length, "/var/lock/LCK..%s", basename);
+	return snprintf(buf, length, "/var/lock/LOCK..%s", basename);
 }
 
 #/* return 0 on error */
@@ -125,10 +132,7 @@ static int lock_create(const char * lockfile)
 		len = snprintf(pidb, sizeof(pidb), "%d %d", getpid(), fd);
 		len = write(fd, pidb, len);
 		close(fd);
-	} else {
-		ast_log(LOG_ERROR, "open('%s') failed: %s\n", lockfile, strerror(errno));
 	}
-
 	return len;
 }
 
@@ -350,7 +354,7 @@ EXPORT_DEF void clean_read_data(const char * devname, int fd)
 	rb_init (&rb, buf, sizeof (buf));
 	for (t = 0; at_wait(fd, &t); t = 0)
 	{
-		iovcnt = at_read (fd, devname, &rb);
+		iovcnt = at_read (NULL, fd, devname, &rb);
 		ast_debug (4, "[%s] drop %u bytes of pending data before initialization\n", devname, (unsigned)rb_used(&rb));
 		/* drop readed */
 		rb_init (&rb, buf, sizeof (buf));
@@ -438,7 +442,7 @@ static void* do_monitor_phone (void* data)
 		}
 
 		/* FIXME: access to device not locked */
-		iovcnt = at_read (fd, dev, &rb);
+		iovcnt = at_read (pvt, fd, dev, &rb);
 		if (iovcnt < 0)
 		{
 			break;
@@ -932,7 +936,6 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 	size_t last_used;
 	struct pvt * pvt;
 	struct pvt * found = NULL;
-	struct pvt * round_robin[MAXDONGLEDEVICES];
 
 	*exists = 0;
 	/* Find requested device and make sure it's connected and initialized. */
@@ -967,17 +970,17 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 		group = (int) strtol (&resource[1], (char**) NULL, 10);
 		if (errno != EINVAL)
 		{
-//			ast_mutex_lock(&state->round_robin_mtx);
+			ast_mutex_lock(&state->round_robin_mtx);
 
 			/* Generate a list of all availible devices */
-			j = ITEMS_OF (round_robin);
+			j = ITEMS_OF (state->round_robin);
 			c = 0; last_used = 0;
 			AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
 			{
 				ast_mutex_lock (&pvt->lock);
 				if (CONF_SHARED(pvt, group) == group)
 				{
-					round_robin[c] = pvt;
+					state->round_robin[c] = pvt;
 					if (pvt->group_last_used == 1)
 					{
 						pvt->group_last_used = 0;
@@ -1003,7 +1006,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 					j = 0;
 				}
 
-				pvt = round_robin[j];
+				pvt = state->round_robin[j];
 				*exists = 1;
 
 				ast_mutex_lock (&pvt->lock);
@@ -1016,22 +1019,22 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				ast_mutex_unlock (&pvt->lock);
 			}
 
-//			ast_mutex_unlock(&state->round_robin_mtx);
+			ast_mutex_unlock(&state->round_robin_mtx);
 		}
 	}
 	else if (((resource[0] == 'p') || (resource[0] == 'P')) && resource[1] == ':')
 	{
-//		ast_mutex_lock(&state->round_robin_mtx);
+		ast_mutex_lock(&state->round_robin_mtx);
 
 		/* Generate a list of all availible devices */
-		j = ITEMS_OF(round_robin);
+		j = ITEMS_OF(state->round_robin);
 		c = 0; last_used = 0;
 		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
 		{
 			ast_mutex_lock (&pvt->lock);
 			if (!strcmp (pvt->provider_name, &resource[2]))
 			{
-				round_robin[c] = pvt;
+				state->round_robin[c] = pvt;
 				if (pvt->prov_last_used == 1)
 				{
 					pvt->prov_last_used = 0;
@@ -1057,7 +1060,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				j = 0;
 			}
 
-			pvt = round_robin[j];
+			pvt = state->round_robin[j];
 			*exists = 1;
 
 			ast_mutex_lock (&pvt->lock);
@@ -1070,14 +1073,14 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_unlock (&pvt->lock);
 		}
 
-//		ast_mutex_unlock(&state->round_robin_mtx);
+		ast_mutex_unlock(&state->round_robin_mtx);
 	}
 	else if (((resource[0] == 's') || (resource[0] == 'S')) && resource[1] == ':')
 	{
-//		ast_mutex_lock(&state->round_robin_mtx);
+		ast_mutex_lock(&state->round_robin_mtx);
 
 		/* Generate a list of all availible devices */
-		j = ITEMS_OF(round_robin);
+		j = ITEMS_OF(state->round_robin);
 		c = 0; last_used = 0;
 		i = strlen (&resource[2]);
 
@@ -1086,7 +1089,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_lock (&pvt->lock);
 			if (!strncmp (pvt->imsi, &resource[2], i))
 			{
-				round_robin[c] = pvt;
+				state->round_robin[c] = pvt;
 				if (pvt->sim_last_used == 1)
 				{
 					pvt->sim_last_used = 0;
@@ -1112,7 +1115,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				j = 0;
 			}
 
-			pvt = round_robin[j];
+			pvt = state->round_robin[j];
 			*exists = 1;
 
 			ast_mutex_lock (&pvt->lock);
@@ -1125,7 +1128,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_unlock (&pvt->lock);
 		}
 
-//		ast_mutex_unlock(&state->round_robin_mtx);
+		ast_mutex_unlock(&state->round_robin_mtx);
 	}
 	else if (((resource[0] == 'i') || (resource[0] == 'I')) && resource[1] == ':')
 	{
@@ -1652,13 +1655,23 @@ static int public_state_init(struct public_state * state)
 	ast_mutex_init(&state->discovery_lock);
 
 	state->discovery_thread = AST_PTHREADT_NULL;
-//	ast_mutex_init(&state->round_robin_mtx);
+	ast_mutex_init(&state->round_robin_mtx);
 
 	if(reload_config(state, 0, RESTATE_TIME_NOW, NULL) == 0)
 	{
 		rv = AST_MODULE_LOAD_FAILURE;
 		if(discovery_restart(state) == 0)
 		{
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
+			/* set preferred capabilities */
+		        ast_format_set(&chan_dongle_format, AST_FORMAT_SLINEAR, 0);
+		        if (!(channel_tech.capabilities = ast_format_cap_alloc())) {
+                		return AST_MODULE_LOAD_FAILURE;
+		        }
+		        ast_format_cap_add(channel_tech.capabilities, &chan_dongle_format);
+			chan_dongle_format_cap = channel_tech.capabilities;
+#endif
+
 			/* register our channel type */
 			if(ast_channel_register(&channel_tech) == 0)
 			{
@@ -1671,6 +1684,9 @@ static int public_state_init(struct public_state * state)
 			}
 			else
 			{
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
+				channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
+#endif
 				ast_log (LOG_ERROR, "Unable to register channel class %s\n", channel_tech.type);
 			}
 			discovery_stop(state);
@@ -1686,7 +1702,7 @@ static int public_state_init(struct public_state * state)
 		ast_log (LOG_ERROR, "Errors reading config file " CONFIG_FILE ", Not loading module\n");
 	}
 
-//	ast_mutex_destroy(&state->round_robin_mtx);
+	ast_mutex_destroy(&state->round_robin_mtx);
 	ast_mutex_destroy(&state->discovery_lock);
 	AST_RWLIST_HEAD_DESTROY(&state->devices);
 
@@ -1698,6 +1714,9 @@ static void public_state_fini(struct public_state * state)
 {
 	/* First, take us out of the channel loop */
 	ast_channel_unregister (&channel_tech);
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
+	channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
+#endif
 
 	/* Unregister the CLI & APP & MANAGER */
 
@@ -1710,7 +1729,7 @@ static void public_state_fini(struct public_state * state)
 	discovery_stop(state);
 	devices_destroy(state);
 	
-//	ast_mutex_destroy(&state->round_robin_mtx);
+	ast_mutex_destroy(&state->round_robin_mtx);
 	ast_mutex_destroy(&state->discovery_lock);
 	AST_RWLIST_HEAD_DESTROY(&state->devices);
 }

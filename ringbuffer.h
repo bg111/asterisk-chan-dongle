@@ -54,6 +54,7 @@ EXPORT_DECL int rb_read_n_iov (const struct ringbuffer* rb, struct iovec* iov, s
 
 EXPORT_DECL int rb_read_until_char_iov (const struct ringbuffer*, struct iovec iov[2], char);
 EXPORT_DECL int rb_read_until_mem_iov (const struct ringbuffer*, struct iovec iov[2], const void*, size_t);
+EXPORT_DECL int rb_read_until_mem_iov_with_skip (const struct ringbuffer* rb, struct iovec iov[2], const void* mem, size_t len,size_t skip);
 
 /*!< advice read position to len bytes */
 EXPORT_DECL size_t rb_read_upd (struct ringbuffer* rb, size_t len);
@@ -64,7 +65,7 @@ EXPORT_DECL int rb_write_iov (const struct ringbuffer*, struct iovec iov[2]);
 /*!< advice write position to len bytes */
 EXPORT_DECL size_t rb_write_upd (struct ringbuffer*, size_t);
 
-EXPORT_DEF size_t rb_write_core (struct ringbuffer* rb, const char* buf, size_t len, rb_write_f method);
+EXPORT_DECL size_t rb_write_core (struct ringbuffer* rb, const char* buf, size_t len, rb_write_f method);
 
 INLINE_DECL size_t rb_write (struct ringbuffer* rb, const char* buf, size_t len)
 {

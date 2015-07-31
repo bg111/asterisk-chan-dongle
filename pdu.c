@@ -266,6 +266,7 @@
 /*   bit 7..6 */
 #define PDU_DCS_76_SHIFT			6
 #define PDU_DCS_76_00				(0x00 << PDU_DCS_76_SHIFT)
+#define PDU_DCS_76_11				(0x03 << PDU_DCS_76_SHIFT)
 #define PDU_DCS_76_MASK				(0x03 << PDU_DCS_76_SHIFT)
 #define PDU_DCS_76(dcs)				((dcs) & PDU_DCS_76_MASK)
 
@@ -453,12 +454,13 @@ static int pdu_parse_number(char ** pdu, size_t * pdu_length, unsigned digits, i
 		unsigned syms = ROUND_UP2(digits);
 		if(syms <= *pdu_length)
 		{
-			if(*toa == NUMBER_TYPE_ALPHANUMERIC)
+			if (*toa == NUMBER_TYPE_ALPHANUMERIC)
 			{
 				memcpy(number, *pdu, syms);
 				*pdu += syms;
 				*pdu_length -= syms;
 				number += syms;
+				*number = 0;
 			}
 			else
 			{
@@ -686,11 +688,21 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	    if(tpdu_length * 2 == pdu_length)
 	    {
 		int pdu_type = pdu_parse_byte(pdu, &pdu_length);
-		if(pdu_type >= 0)
-		{
-			/* TODO: also handle PDUTYPE_MTI_SMS_SUBMIT_REPORT and PDUTYPE_MTI_SMS_STATUS_REPORT */
-			if(PDUTYPE_MTI(pdu_type) == PDUTYPE_MTI_SMS_DELIVER)
-			{
+		if (pdu_type>=0) {
+		/* TODO: also handle PDUTYPE_MTI_SMS_SUBMIT_REPORT and PDUTYPE_MTI_SMS_STATUS_REPORT */
+		switch(PDUTYPE_MTI(pdu_type)) {
+			case PDUTYPE_MTI_SMS_STATUS_REPORT:
+				{
+				int pid = pdu_parse_byte(pdu, &pdu_length);
+				int oa_digits = pdu_parse_byte(pdu, &pdu_length);
+				int oa_toa;
+
+				field_len = pdu_parse_number(pdu, &pdu_length, oa_digits, &oa_toa, oa, oa_len);
+				if (msg) *msg = "Delivery succeeded";
+				}
+				break;
+			case PDUTYPE_MTI_SMS_DELIVER:
+				{
 				int oa_digits = pdu_parse_byte(pdu, &pdu_length);
 				if(oa_digits > 0)
 				{
@@ -700,7 +712,8 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 					{
 						int pid = pdu_parse_byte(pdu, &pdu_length);
 						*oa_enc = (oa_toa == NUMBER_TYPE_ALPHANUMERIC) ? STR_ENCODING_7BIT_HEX : STR_ENCODING_7BIT;
-						if(pid >= 0)
+
+						if ((PDUTYPE_MTI(pdu_type) == PDUTYPE_MTI_SMS_DELIVER) && (pid >= 0))
 						{
 						   /* TODO: support other types of messages */
 						   if(pid == PDU_PID_SMS)
@@ -709,9 +722,9 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 							if(dcs >= 0)
 							{
 							    // TODO: support compression
-							    if( PDU_DCS_76(dcs) == PDU_DCS_76_00
-							    		&&
-							    	PDU_DCS_COMPRESSION(dcs) == PDU_DCS_NOT_COMPESSED
+							    if ((((PDU_DCS_76(dcs) == PDU_DCS_76_00) && (PDU_DCS_COMPRESSION(dcs) == PDU_DCS_NOT_COMPESSED))
+									||
+								 ((PDU_DCS_76(dcs) == PDU_DCS_76_11) && (PDU_DCS_COMPRESSION(dcs) == PDU_DCS_COMPESSED)))
 							    		&&
 							    		(
 							    		PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_7BIT
@@ -723,7 +736,7 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 							    	)
 							    {
 								int ts = pdu_parse_timestamp(pdu, &pdu_length);
-								*msg_enc = pdu_dcs_alpabet2encoding(PDU_DCS_ALPABET(dcs));
+								if (msg_enc) *msg_enc = pdu_dcs_alpabet2encoding(PDU_DCS_ALPABET(dcs));
 								if(ts >= 0)
 								{
 									int udl = pdu_parse_byte(pdu, &pdu_length);
@@ -758,7 +771,7 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 												}
 											}
 											/* save message */
-											*msg = *pdu;
+											if (msg) *msg = *pdu;
 										}
 										else
 										{
@@ -807,16 +820,14 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 					err = "Can't parse length of OA";
 				}
 			}
-			else
-			{
+			break;
+		default:
 				*pdu -= 2;
 				err = "Unhandled PDU Type MTI only SMS-DELIVER supported";
-			}
 		}
-		else
-		{
+		} else {
 			err = "Can't parse PDU Type";
-		}
+	        }
 	    }
 	    else
 	    {

@@ -51,8 +51,9 @@ EXPORT_DEF int at_wait (int fd, int* ms)
 	return outfd;
 }
 
+
 #/* return number of bytes readed */
-EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
+EXPORT_DEF ssize_t at_read (struct pvt * pvt, int fd, const char * dev, struct ringbuffer* rb)
 {
 	struct iovec	iov[2];
 	int		iovcnt;
@@ -70,6 +71,7 @@ EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 			if (errno != EINTR && errno != EAGAIN)
 			{
 				ast_debug (1, "[%s] readv() error: %d\n", dev, errno);
+				at_log(pvt,"<!","read error",10);
 				return n;
 			}
 
@@ -84,16 +86,28 @@ EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 
 			iovcnt = rb_read_all_iov (rb, iov);
 
+
+			at_logv(pvt, "<", iov, iovcnt);
+
 			if (iovcnt > 0)
 			{
 				if (iovcnt == 2)
 				{
+#if 0
+					ast_log (LOG_NOTICE, "[%s] [%.*s%.*s]\n", dev,
+							(int) iov[0].iov_len, (char*) iov[0].iov_base,
+							(int) iov[1].iov_len, (char*) iov[1].iov_base);
+#endif
 					ast_debug (5, "[%s] [%.*s%.*s]\n", dev,
 							(int) iov[0].iov_len, (char*) iov[0].iov_base,
 							(int) iov[1].iov_len, (char*) iov[1].iov_base);
 				}
 				else
 				{
+#if 0
+					ast_log (LOG_NOTICE, "[%s] [%.*s]\n", dev,
+							(int) iov[0].iov_len, (char*) iov[0].iov_base);
+#endif
 					ast_debug (5, "[%s] [%.*s]\n", dev,
 							(int) iov[0].iov_len, (char*) iov[0].iov_base);
 				}
@@ -104,6 +118,8 @@ EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 		ast_log (LOG_ERROR, "[%s] at cmd receive buffer overflow\n", dev);
 	return n;
 }
+
+
 
 EXPORT_DEF int at_read_result_iov (const char * dev, int * read_result, struct ringbuffer* rb, struct iovec iov[2])
 {
@@ -116,6 +132,8 @@ EXPORT_DEF int at_read_result_iov (const char * dev, int * read_result, struct r
 	{
 /*		ast_debug (5, "[%s] d_read_result %d len %d input [%.*s]\n", dev, *read_result, s, MIN(s, rb->size - rb->read), (char*)rb->buffer + rb->read);
 */
+		ast_debug (5, "[%s] d_read_result %d len %d input [%.*s]\n", dev, *read_result, s, MIN(s, rb->size - rb->read), (char*)rb->buffer + rb->read);
+
 
 		if (*read_result == 0)
 		{
@@ -180,6 +198,25 @@ EXPORT_DEF int at_read_result_iov (const char * dev, int * read_result, struct r
 				}
 
 				return iovcnt;
+			}
+			else if ((rb_memcmp(rb,"+CMT:",5)==0) || (rb_memcmp(rb,"+CDS:",5)==0)) 
+			{
+				iovcnt = rb_read_until_mem_iov (rb, iov, "\r\n", 2);
+				if (iovcnt > 0 ) {
+
+					s = iov[0].iov_len + iov[1].iov_len + 2 ;
+					iovcnt = rb_read_until_mem_iov_with_skip (rb, iov, "\r\n", 2, s);
+
+					if (iovcnt > 0)
+					{
+						s += iov[0].iov_len + iov[1].iov_len + 1;
+
+						*read_result = 0;
+						return rb_read_n_iov (rb, iov, s);
+					}
+				}
+
+				return 0;
 			}
 			else
 			{

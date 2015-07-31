@@ -16,6 +16,7 @@
 #include <asterisk.h>
 #include <asterisk/utils.h>		/* ast_free() */
 
+#include "at_log.h"
 #include "at_queue.h"
 #include "chan_dongle.h"		/* struct pvt */
 
@@ -192,11 +193,17 @@ EXPORT_DEF int at_write (struct pvt* pvt, const char* buf, size_t count)
 	size_t wrote;
 
 	ast_debug (5, "[%s] [%.*s]\n", PVT_ID(pvt), (int) count, buf);
+#if 0
+	ast_log (LOG_NOTICE, "[%s] [%.*s]\n", PVT_ID(pvt), (int) count, buf);
+#endif
+
+	at_log(pvt, ">", buf, count);
 
 	wrote = write_all(pvt->data_fd, buf, count);
 	PVT_STAT(pvt, d_write_bytes) += wrote;
 	if(wrote != count)
 	{
+		at_log(pvt,">!","write error",11);
 		ast_debug (1, "[%s] write() error: %d\n", PVT_ID(pvt), errno);
 	}
 

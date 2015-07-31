@@ -16,11 +16,13 @@ EXPORT_DECL void manager_event_message_raw(const char * event, const char * devn
 
 EXPORT_DECL void manager_event_new_ussd(const char * devname, char * message);
 EXPORT_DECL void manager_event_new_sms(const char * devname, char * number, char * message);
-EXPORT_DECL void manager_event_new_sms_base64 (const char * devname, char * number, char * message_base64);
+EXPORT_DECL void manager_event_new_sms_base64 (const char * devname, char * number, char * message_base64, char *pdu);
+EXPORT_DECL void manager_event_new_sms_receipt (const char * devname, char * number, char *pdu);
 EXPORT_DECL void manager_event_cend(const char * devname, int call_index, int duration, int end_status, int cc_cause);
 EXPORT_DECL void manager_event_call_state_change(const char * devname, int call_index, const char * newstate);
 EXPORT_DECL void manager_event_device_status(const char * devname, const char * newstatus);
 EXPORT_DECL void manager_event_sent_notify(const char * devname, const char * type, const void * id, const char * result);
+EXPORT_DECL void manager_event_sms_reference(const char * devname,  const void * id, int reference);
 
 #else  /* BUILD_MANAGER */
 

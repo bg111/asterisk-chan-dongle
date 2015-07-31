@@ -21,6 +21,9 @@ typedef enum {
 
 	RES_CMGR,
 	RES_CMS_ERROR,
+	RES_CDS,
+	RES_CDSI,
+	RES_CMT,
 	RES_CMTI,
 	RES_CNUM,
 
