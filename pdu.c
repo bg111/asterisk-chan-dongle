@@ -753,6 +753,10 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 												int udhl = pdu_parse_byte(pdu, &pdu_length);
 												if(udhl >= 0)
 												{
+													/* Skip the size after UDH */
+													if (*msg_enc == STR_ENCODING_7BIT_HEX)
+														udhl += 1;
+
 													/* NOTE: UDHL count octets no need calculation */
 													if(pdu_length >= (size_t)(udhl * 2))
 													{
