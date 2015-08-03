@@ -235,7 +235,7 @@ static ssize_t hexstr_7bit_to_char (const char* in, size_t in_length, char* out,
 		c = (c >> 1) | b;
 		b = ((unsigned char) hexval) >> (8 - s);
 
-		out[x] = c;
+		out[x] = (c > 31) ? c : 0x3f;
 		x++; s++;
 
 		if (s == 8)

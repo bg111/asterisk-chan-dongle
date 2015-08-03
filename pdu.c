@@ -747,33 +747,29 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 											udl = ((udl + 1) * 7) >> 3;
 										if((size_t)udl * 2 == pdu_length)
 										{
-											if(PDUTYPE_UDHI(pdu_type) == PDUTYPE_UDHI_HAS_HEADER)
-											{
-												/* TODO: implement header parse */
-												int udhl = pdu_parse_byte(pdu, &pdu_length);
-												if(udhl >= 0)
-												{
-													/* Skip the size after UDH */
-													if (*msg_enc == STR_ENCODING_7BIT_HEX)
-														udhl += 1;
-
-													/* NOTE: UDHL count octets no need calculation */
-													if(pdu_length >= (size_t)(udhl * 2))
-													{
-														/* skip UDH */
-														*pdu += udhl * 2;
-														pdu_length -= udhl * 2;
-													}
-													else
-													{
-														err = "Invalid UDH";
-													}
-												}
-												else
-												{
-													err = "Can't parse UDHL";
-												}
-											}
+											//if(PDUTYPE_UDHI(pdu_type) == PDUTYPE_UDHI_HAS_HEADER)
+											//{
+											//	/* TODO: implement header parse */
+											//	int udhl = pdu_parse_byte(pdu, &pdu_length);
+											//	if(udhl >= 0)
+											//	{
+											//		/* NOTE: UDHL count octets no need calculation */
+											//		if(pdu_length >= (size_t)(udhl * 2))
+											//		{
+											//			/* skip UDH */
+											//			*pdu += udhl * 2;
+											//			pdu_length -= udhl * 2;
+											//		}
+											//		else
+											//		{
+											//			err = "Invalid UDH";
+											//		}
+											//	}
+											//	else
+											//	{
+											//		err = "Can't parse UDHL";
+											//	}
+											//}
 											/* save message */
 											if (msg) *msg = *pdu;
 										}
