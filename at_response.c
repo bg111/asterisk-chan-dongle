@@ -1345,7 +1345,7 @@ static int at_response_cusd (struct pvt * pvt, char * str, size_t len)
 
 	// FIXME: strictly check USSD encoding and detect encoding
 	if ((dcs == 0 || dcs == 15) && !pvt->cusd_use_ucs2_decoding)
-		ussd_encoding = STR_ENCODING_7BIT_HEX;
+		ussd_encoding = STR_ENCODING_7BIT_HEX_PAD_0;
 	else
 		ussd_encoding = STR_ENCODING_UCS2_HEX;
 	res = str_recode (RECODE_DECODE, ussd_encoding, cusd, strlen (cusd), cusd_utf8_str, sizeof (cusd_utf8_str));

@@ -182,6 +182,9 @@
 */
 
 #define NUMBER_TYPE_INTERNATIONAL		0x91
+#define NUMBER_TYPE_NATIONAL			0xC8
+#define NUMBER_TYPE_ALPHANUMERIC		0xD0
+
 
 /* Message Type Indicator Parameter */
 #define PDUTYPE_MTI_SHIFT			0
@@ -229,6 +232,7 @@
 
 #define PDU_PID_SMS				0x00		/* bit5 No interworking, but SME-to-SME protocol = SMS */
 #define PDU_PID_EMAIL				0x32		/* bit5 Telematic interworking, bits 4..0 0x 12  = email */
+#define PDU_PID_SMS_REPLACE_MASK		0x40		/* bit7 Replace Short Message function activated (TP-PID = 0x41 to 0x47) */
 
 /* DCS */
 /*   bits 1..0 Class */
@@ -257,8 +261,8 @@
 
 /*   bit 5 */
 #define PDU_DCS_COMPRESSION_SHIFT		5
-#define PDU_DCS_NOT_COMPESSED			(0x00 << PDU_DCS_COMPRESSION_SHIFT)
-#define PDU_DCS_COMPESSED			(0x01 << PDU_DCS_COMPRESSION_SHIFT)
+#define PDU_DCS_NOT_COMPRESSED			(0x00 << PDU_DCS_COMPRESSION_SHIFT)
+#define PDU_DCS_COMPRESSED			(0x01 << PDU_DCS_COMPRESSION_SHIFT)
 #define PDU_DCS_COMPRESSION_MASK		(0x01 << PDU_DCS_COMPRESSION_SHIFT)
 #define PDU_DCS_COMPRESSION(dcs)		((dcs) & PDU_DCS_COMPRESSION_MASK)
 
@@ -347,8 +351,10 @@ static char pdu_code2digit(char code)
 		case 'E':
 			code = 'C';
 			break;
+		case 'f':
 		case 'F':
-			return 0;
+			code = 0;
+			break;
 		default:
 			return -1;
 	}
@@ -441,36 +447,48 @@ failed parse 07 91  97 30 07 11 11 F1  04  14 D0 D9B09B5CC637DFEE721E00081170206
 static int pdu_parse_number(char ** pdu, size_t * pdu_length, unsigned digits, int * toa, char * number, size_t num_len)
 {
 	const char * begin;
-
 	if(num_len < digits + 1)
 		return -ENOMEM;
-
 	begin = *pdu;
 	*toa = pdu_parse_byte(pdu, pdu_length);
 	if(*toa >= 0)
 	{
-		unsigned syms = ROUND_UP2(digits);
-		if(syms <= *pdu_length)
+		digits = ROUND_UP2(digits);
+
+		if(digits <= *pdu_length)
 		{
-			char digit;
+			int digit = 0;
+			unsigned x;
+
 			if(*toa == NUMBER_TYPE_INTERNATIONAL)
 				*number++ = '+';
-			for(; syms > 0; syms -= 2, *pdu += 2, *pdu_length -= 2)
+			// BEGIN oioki proposed patch 2013-07-24
+			if(*toa == NUMBER_TYPE_ALPHANUMERIC)
 			{
-				digit = pdu_code2digit(pdu[0][1]);
-				if(digit <= 0)
-					return -1;
-				*number++ = digit;
-
-				digit = pdu_code2digit(pdu[0][0]);
-				if(digit < 0 || (digit == 0 && (syms != 2 || (digits & 0x1) == 0)))
-					return -1;
-
-				*number++ = digit;
+				for(; digits > 0; digits --, *pdu += 1, *pdu_length -= 1)
+					*number++ = pdu[0][0];
+				return *pdu - begin;
 			}
-			if((digits & 0x1) == 0)
-				*number = 0;
-			return *pdu - begin;
+			// END oioki proposed patch 2013-07-24
+
+			for(x = 0; x < digits; x++) {
+				digit = pdu_code2digit(pdu[0][x ^ 1]);
+
+				if(digit <= 0) {
+					for (; x < digits; x++)
+						number[x] = 0;
+					break;
+				}
+				number[x] = digit;
+			}
+			/* always zero terminate */
+			number[digits] = 0;
+
+			*pdu += digits;
+			*pdu_length -= digits;
+
+			/* return parsed length */
+			return (digits + 2);
 		}
 	}
 
@@ -515,7 +533,7 @@ static int pdu_parse_timestamp(char ** pdu, size_t * length)
 static int check_encoding(const char* msg, unsigned length)
 {
 	str_encoding_t possible_enc = get_encoding(RECODE_ENCODE, msg, length);
-	if(possible_enc == STR_ENCODING_7BIT_HEX)
+	if(possible_enc == STR_ENCODING_7BIT_HEX_PAD_0)
 		return PDU_DCS_ALPABET_7BIT;
 	return PDU_DCS_ALPABET_UCS2;
 }
@@ -601,7 +619,7 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const cha
 	len += pdu_store_number(buffer + len, dst, dst_len);
 
 	/* forward TP-User-Data */
-	data_len = str_recode(RECODE_ENCODE, dcs == PDU_DCS_ALPABET_UCS2 ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT_HEX, msg, msg_len, buffer + len + 8, length - len - 11);
+	data_len = str_recode(RECODE_ENCODE, dcs == PDU_DCS_ALPABET_UCS2 ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT_HEX_PAD_0, msg, msg_len, buffer + len + 8, length - len - 11);
 	if(data_len < 0)
 	{
 		return -EINVAL;
@@ -644,7 +662,7 @@ static str_encoding_t pdu_dcs_alpabet2encoding(int alpabet)
 	switch(alpabet)
 	{
 		case (PDU_DCS_ALPABET_7BIT >> PDU_DCS_ALPABET_SHIFT):
-			rv = STR_ENCODING_7BIT_HEX;
+			rv = STR_ENCODING_7BIT_HEX_PAD_0;
 			break;
 		case (PDU_DCS_ALPABET_8BIT >> PDU_DCS_ALPABET_SHIFT):
 			rv = STR_ENCODING_8BIT_HEX;
@@ -673,9 +691,14 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	int field_len = pdu_parse_sca(pdu, &pdu_length);
 	if(field_len > 0)
 	{
-	    if(tpdu_length * 2 == pdu_length)
+	    if(tpdu_length * 2 <= pdu_length)
 	    {
-		int pdu_type = pdu_parse_byte(pdu, &pdu_length);
+		int pdu_type;
+
+		/* update length, if any */
+		(*pdu)[pdu_length = (tpdu_length * 2)] = 0;
+
+		pdu_type = pdu_parse_byte(pdu, &pdu_length);
 		if(pdu_type >= 0)
 		{
 			/* TODO: also handle PDUTYPE_MTI_SMS_SUBMIT_REPORT and PDUTYPE_MTI_SMS_STATUS_REPORT */
@@ -686,14 +709,16 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 				{
 					int oa_toa;
 					field_len = pdu_parse_number(pdu, &pdu_length, oa_digits, &oa_toa, oa, oa_len);
-					if(field_len > 0)
+					if(field_len >= 0)
 					{
 						int pid = pdu_parse_byte(pdu, &pdu_length);
 						*oa_enc = STR_ENCODING_7BIT;
+						if (oa_toa==NUMBER_TYPE_ALPHANUMERIC)  *oa_enc = STR_ENCODING_7BIT_HEX_PAD_0;  //  alphanumeric patch
 						if(pid >= 0)
 						{
 						   /* TODO: support other types of messages */
-						   if(pid == PDU_PID_SMS)
+//  shabbir    if( (pid == PDU_PID_SMS) || (pid & PDU_PID_SMS_REPLACE_MASK) )
+						   if(pid == PDU_PID_SMS || (pid >= 0x41 && pid <= 0x47))
 						   {
 							int dcs = pdu_parse_byte(pdu, &pdu_length);
 							if(dcs >= 0)
@@ -701,7 +726,7 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 							    // TODO: support compression
 							    if( PDU_DCS_76(dcs) == PDU_DCS_76_00
 							    		&&
-							    	PDU_DCS_COMPRESSION(dcs) == PDU_DCS_NOT_COMPESSED
+							    	PDU_DCS_COMPRESSION(dcs) == PDU_DCS_NOT_COMPRESSED
 							    		&&
 							    		(
 							    		PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_7BIT
@@ -726,16 +751,70 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 										{
 											if(PDUTYPE_UDHI(pdu_type) == PDUTYPE_UDHI_HAS_HEADER)
 											{
-												/* TODO: implement header parse */
 												int udhl = pdu_parse_byte(pdu, &pdu_length);
 												if(udhl >= 0)
 												{
+													/* adjust 7-bit padding */
+													if (*msg_enc == STR_ENCODING_7BIT_HEX_PAD_0) {
+														switch (6 - (udhl % 7)) {
+														case 1:
+															*msg_enc = STR_ENCODING_7BIT_HEX_PAD_1;
+															break;
+														case 2:
+															*msg_enc = STR_ENCODING_7BIT_HEX_PAD_2;
+															break;
+														case 3:
+															*msg_enc = STR_ENCODING_7BIT_HEX_PAD_3;
+															break;
+														case 4:
+															*msg_enc = STR_ENCODING_7BIT_HEX_PAD_4;
+															break;
+														case 5:
+															*msg_enc = STR_ENCODING_7BIT_HEX_PAD_5;
+															break;
+														case 6:
+															*msg_enc = STR_ENCODING_7BIT_HEX_PAD_6;
+															break;
+														default:
+															/* no change */
+															break;
+														}
+													}
+
 													/* NOTE: UDHL count octets no need calculation */
 													if(pdu_length >= (size_t)(udhl * 2))
 													{
-														/* skip UDH */
-														*pdu += udhl * 2;
-														pdu_length -= udhl * 2;
+														while (udhl >= 2) {
+														  int iei_type;
+														  int iei_len;
+
+														  /* get type byte */
+														  iei_type = pdu_parse_byte(pdu, &pdu_length);
+
+														  /* get length byte */
+														  iei_len = pdu_parse_byte(pdu, &pdu_length);
+
+														  /* subtract bytes */
+														  udhl -= 2;
+
+														  /* skip data, if any */
+														  if (iei_len >= 0 && iei_len <= udhl) {
+														      /* skip rest of IEI */
+														      *pdu += iei_len * 2;
+														      pdu_length -= iei_len * 2;
+														      udhl -= iei_len;
+														  }
+														  else
+														  {
+														      err = "Invalid IEI len";
+														      break;
+														  }
+														}
+														if (err == NULL) {
+														  /* skip rest of UDH, if any */
+														  *pdu += udhl * 2;
+														  pdu_length -= udhl * 2;
+														}
 													}
 													else
 													{
