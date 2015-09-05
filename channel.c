@@ -95,18 +95,23 @@ EXPORT_DEF int channels_loop(struct pvt * pvt, const struct ast_channel * reques
 	return 0;
 }
 
-#if ASTERISK_VERSION_NUM >= 10800
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
+
+static struct ast_channel * channel_request (attribute_unused const char * type, struct ast_format_cap * cap, const struct ast_channel *requestor, void * data, int * cause)
+
+#elif ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 //   TODO: simplify by move common code to functions
 static struct ast_channel * channel_request (attribute_unused const char * type, format_t format, const struct ast_channel * requestor, void * data, int * cause)
 
-#else /* #if ASTERISK_VERSION_NUM >= 10800 */
+#else /* ASTERISK_VERSION_NUM < 10800 */
 /* TODO: add check when request 'holdother' what requestor is not on same device for 1.6 */
 
 static struct ast_channel * channel_request (attribute_unused const char * type, int format, void * data, int * cause)
 
-#endif /* #if ASTERISK_VERSION_NUM >= 10800 */
+#endif /* ASTERISK_VERSION_NUM */
 {
-#if ASTERISK_VERSION_NUM >= 10800
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
+#elif ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 	format_t oldformat;
 #else
 	int oldformat;
@@ -126,11 +131,18 @@ static struct ast_channel * channel_request (attribute_unused const char * type,
 		return NULL;
 	}
 
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
+	if (!(ast_format_cap_has_type(cap, AST_FORMAT_SLINEAR)))
+#else
 	oldformat = format;
 	format &= AST_FORMAT_SLINEAR;
 	if (!format)
+#endif
 	{
-#if ASTERISK_VERSION_NUM >= 10800
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
+		char buf[255];
+		ast_log (LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple (buf, 255, cap));
+#elif ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 		ast_log (LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname (oldformat));
 #else
 		ast_log (LOG_WARNING, "Asked to get a channel of unsupported format '%d'\n", oldformat);
