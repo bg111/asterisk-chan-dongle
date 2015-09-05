@@ -797,10 +797,35 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 					err = "Can't parse length of OA";
 				}
 			}
+			else if(PDUTYPE_MTI(pdu_type) == PDUTYPE_MTI_SMS_STATUS_REPORT)
+			{
+				int reference = pdu_parse_byte(pdu, &pdu_length);
+				/* Skip over 8 bytes TP-DA */
+				if (reference >= 0 && pdu_length >= 8) {
+					(*pdu) += 8;
+					pdu_length -= 8;
+					/* Skip over 7 bytes timestamp TP-SCTS */
+					if (pdu_parse_timestamp(pdu, &pdu_length) >= 0 &&
+					    /* Skip over 7 bytes timestamp TP-DT */
+					    pdu_parse_timestamp(pdu, &pdu_length) >= 0) {
+						int tp_status = pdu_parse_byte(pdu, &pdu_length);
+						if ((tp_status & 0xf) == 0) {
+							err = (void*)0x1; /* HACK! */
+							*msg = (char*)(ssize_t)reference; /* HACK! */
+						} else {
+							err = "Good report, but delivery failed";
+						}
+					} else {
+						err = "FIXME error 1";
+					}
+				} else {
+					err = "FIXME error 2";
+				}
+			}
 			else
 			{
 				*pdu -= 2;
-				err = "Unhandled PDU Type MTI only SMS-DELIVER supported";
+				err = "Unhandled PDU Type MTI only SMS-DELIVER/SMS-STATUS-REPORT supported";
 			}
 		}
 		else

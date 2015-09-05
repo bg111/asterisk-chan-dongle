@@ -1198,8 +1198,16 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 		pvt_try_restate(pvt);
 
 		cmgr = err_pos = ast_strdupa (str);
-		err = at_parse_cmgr (&err_pos, len, oa, sizeof(oa), &oa_enc, &msg, &msg_enc);
-		if (err)
+		err = at_parse_cmgr (&err_pos, len, oa, sizeof(oa), &oa_enc, &msg, &msg_enc); // YYY
+		if (err == (void*)0x1) /* HACK! */
+		{
+			char buf[64];
+			int res = (int)(long)msg; /* HACK */
+			snprintf(buf, 64, "Delivered\r\nForeignID: %d", res);
+			manager_event_sent_notify(PVT_ID(pvt), "SMS", 0x0 /* task is popped */, buf);
+			return 0;
+		}
+		else if (err)
 		{
 			ast_log (LOG_WARNING, "[%s] Error parsing incoming message '%s' at possition %d: %s\n", PVT_ID(pvt), str, (int)(err_pos - cmgr), err);
 			return 0;
@@ -1722,9 +1730,21 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 			case RES_CSSU:
 			case RES_SRVST:
 			case RES_CVOICE:
-			case RES_CMGS:
 			case RES_CPMS:
 			case RES_CONF:
+				return 0;
+
+			case RES_CMGS:
+				/* Abuse the fact that we know how the manager
+				 * message are formatted: CRLF separated headers
+				 * with colon between key and value */
+				{
+					char buf[64];
+					int res = at_parse_cmgs(str);
+					const at_queue_task_t * task = at_queue_head_task (pvt);
+					snprintf(buf, 64, "Sending\r\nForeignID: %d", res);
+					manager_event_sent_notify(PVT_ID(pvt), "SMS", task, buf);
+				}
 				return 0;
 
 			case RES_OK:

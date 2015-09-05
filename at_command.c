@@ -133,7 +133,7 @@ EXPORT_DEF int at_enque_initialization(struct cpvt* cpvt, at_cmd_t from_command)
 	static const char cmd19[] = "AT+CSSN=1,1\r";
 	static const char cmd21[] = "AT+CSCS=\"UCS2\"\r";
 
-	static const char cmd22[] = "AT+CPMS=\"ME\",\"ME\",\"ME\"\r";
+	static const char cmd22[] = "AT+CPMS=\"SM\",\"SM\",\"SM\"\r";
 	static const char cmd23[] = "AT+CNMI=2,1,0,0,0\r";
 	static const char cmd24[] = "AT+CSQ\r";
 

@@ -385,6 +385,27 @@ EXPORT_DEF const char * at_parse_cmgr(char ** str, size_t len, char * oa, size_t
 	return rv;
 }
 
+/*!
+ * \brief Parse a +CMGS notification
+ * \param str -- string to parse (null terminated)
+ * \return -1 on error (parse error) or the first integer value found
+ * \todo FIXME: parse <mr>[,<scts>] value correctly
+ */
+
+EXPORT_DEF int at_parse_cmgs (const char* str)
+{
+	int cmgs = -1;
+
+	/*
+	 * parse CMGS info in the following format:
+	 * +CMGS:<mr>[,<scts>]
+	 * (sscanf is lax about extra spaces)
+	 * TODO: not ignore parse errors ;)
+	 */
+	sscanf (str, "+CMGS:%d", &cmgs);
+	return cmgs;
+}
+
  /*!
  * \brief Parse a CUSD answer
  * \param str -- string to parse (null terminated)
