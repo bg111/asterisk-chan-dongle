@@ -463,7 +463,7 @@ static int pdu_parse_number(char ** pdu, size_t * pdu_length, unsigned digits, i
 				*number++ = digit;
 
 				digit = pdu_code2digit(pdu[0][0]);
-				if(digit < 0 || (digit == 0 && (syms != 2 || (digits & 0x1) == 0)))
+				if((signed char)digit < 0 || (digit == 0 && (syms != 2 || (digits & 0x1) == 0)))
 					return -1;
 
 				*number++ = digit;

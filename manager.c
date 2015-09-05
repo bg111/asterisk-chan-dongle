@@ -731,9 +731,16 @@ static const struct dongle_manager
 EXPORT_DEF void manager_register()
 {
 	unsigned i;
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	struct ast_module* module = self_module();
+#endif
+
 	for(i = 0; i < ITEMS_OF(dcm); i++)
 	{
-#if ASTERISK_VERSION_NUM >= 110000
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func,
+			module, dcm[i].brief, dcm[i].desc);
+#elif ASTERISK_VERSION_NUM >= 110000 /* 11+ */
 		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, NULL, dcm[i].brief, dcm[i].desc);
 #else
 		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, dcm[i].brief, dcm[i].desc);

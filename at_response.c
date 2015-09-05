@@ -840,7 +840,11 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 	struct cpvt* cpvt;
 
 	/* TODO: pass also Subscriber number or other DID info for exten  */
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	struct ast_channel * channel = new_channel (pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state, pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten), NULL, NULL);
+#else
 	struct ast_channel * channel = new_channel (pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state, pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten), NULL);
+#endif
 
 	if (!channel)
 	{
@@ -853,11 +857,15 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 
 		return -1;
 	}
+
 	cpvt = ast_channel_tech_pvt(channel);
 // FIXME: not execute if channel_new() failed
 	CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 
 	// ast_pbx_start() usually failed if asterisk.conf minmemfree set too low, try drop buffer cache sync && echo 3 > /proc/sys/vm/drop_caches
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	ast_channel_unlock(channel);
+#endif
 	if (ast_pbx_start (channel))
 	{
 		ast_channel_tech_pvt_set(channel, NULL);
@@ -922,7 +930,10 @@ static int at_response_clcc (struct pvt* pvt, char* str)
 								if(cpvt->channel)
 								{
 									/* FIXME: unprotected channel access */
-									ast_channel_rings_set(cpvt->channel, ast_channel_rings(cpvt->channel) + pvt->rings);
+									int rings = ast_channel_rings(cpvt->channel);
+									rings += pvt->rings;
+									ast_channel_rings_set(cpvt->channel, rings);
+									pvt->rings = 0;
 								}
 							}
 							if(state != cpvt->state)
