@@ -36,6 +36,9 @@ INLINE_DECL const char * dev_state2str_msg(dev_state_t state)
 	return enum2str(state, states, ITEMS_OF(states));
 }
 
+/* Only linear is allowed */
+EXPORT_DECL struct ast_format chan_dongle_format;
+EXPORT_DECL struct ast_format_cap * chan_dongle_format_cap;
 
 typedef enum {
 	RESTATE_TIME_NOW	= 0,
