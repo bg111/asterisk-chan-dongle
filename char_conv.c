@@ -235,11 +235,20 @@ static ssize_t hexstr_7bit_to_char (const char* in, size_t in_length, char* out,
 		c = (c >> 1) | b;
 		b = ((unsigned char) hexval) >> (8 - s);
 
+		if (c == 0 && i + 1 < in_length) {
+			/* @ is encoded as NUL */
+			c = '@';
+		}
+
 		out[x] = c;
 		x++; s++;
 
 		if (s == 8)
 		{
+			if (b == 0 && i + 1 < in_length) {
+				/* @ is encoded as NUL */
+				b = '@';
+			}
 			out[x] = b;
 			s = 1; b = 0;
 			x++;
