@@ -39,7 +39,6 @@
 #include <asterisk.h>
 ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 
-#include <asterisk/version.h>
 #include <asterisk/stringfields.h>	/* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/manager.h>
 #include <asterisk/dsp.h>
@@ -52,6 +51,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include <pthread.h>			/* pthread_t pthread_kill() pthread_join() */
 #include <fcntl.h>			/* O_RDWR O_NOCTTY */
 #include <signal.h>			/* SIGURG */
+
+#include "ast_compat.h"			/* asterisk compatibility fixes */
 
 #include "chan_dongle.h"
 #include "at_response.h"		/* at_res_t */
@@ -68,8 +69,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 
 EXPORT_DEF const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
 EXPORT_DEF public_state_t * gpublic;
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
 EXPORT_DEF struct ast_format chan_dongle_format;
 EXPORT_DEF struct ast_format_cap * chan_dongle_format_cap;
+#endif
 
 
 static int public_state_init(struct public_state * state);

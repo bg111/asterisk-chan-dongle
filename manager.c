@@ -733,7 +733,11 @@ EXPORT_DEF void manager_register()
 	unsigned i;
 	for(i = 0; i < ITEMS_OF(dcm); i++)
 	{
+#if ASTERISK_VERSION_NUM >= 110000
+		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, NULL, dcm[i].brief, dcm[i].desc);
+#else
 		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, dcm[i].brief, dcm[i].desc);
+#endif
 	}
 }
 

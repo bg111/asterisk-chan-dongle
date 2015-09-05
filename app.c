@@ -18,7 +18,8 @@
 #include <asterisk/app.h>	/* AST_DECLARE_APP_ARGS() ... */
 #include <asterisk/pbx.h>	/* pbx_builtin_setvar_helper() */
 #include <asterisk/module.h>	/* ast_register_application2() ast_unregister_application() */
-#include <asterisk/version.h>	/* ASTERISK_VERSION_NUM */
+
+#include "ast_compat.h"		/* asterisk compatibility fixes */
 
 #include "app.h"		/* app_register() app_unregister() */
 #include "chan_dongle.h"	/* struct pvt */

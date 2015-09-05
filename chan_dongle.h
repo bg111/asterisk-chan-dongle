@@ -16,6 +16,8 @@
 #include <asterisk/lock.h>
 #include <asterisk/linkedlists.h>
 
+#include <ast_compat.h>
+
 #include "mixbuffer.h"				/* struct mixbuffer */
 //#include "ringbuffer.h"				/* struct ringbuffer */
 #include "cpvt.h"				/* struct cpvt */
@@ -36,9 +38,11 @@ INLINE_DECL const char * dev_state2str_msg(dev_state_t state)
 	return enum2str(state, states, ITEMS_OF(states));
 }
 
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
 /* Only linear is allowed */
 EXPORT_DECL struct ast_format chan_dongle_format;
 EXPORT_DECL struct ast_format_cap * chan_dongle_format_cap;
+#endif
 
 typedef enum {
 	RESTATE_TIME_NOW	= 0,

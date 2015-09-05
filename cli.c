@@ -12,10 +12,14 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#ifndef ASTERISK_VERSION_NUM
+#error ASTERISK_VERSION_NUM is not set, please supply \
+	-D ASTERISK_VERSION_NUM=100501 for version 10.5.1
+#endif
+
 #include <asterisk.h>
 #include <asterisk/cli.h>			/* struct ast_cli_entry; struct ast_cli_args */
 #include <asterisk/callerid.h>			/* ast_describe_caller_presentation() */
-#include <asterisk/version.h>			/* ASTERISK_VERSION_NUM */
 
 #include "cli.h"
 #include "chan_dongle.h"			/* devices */
