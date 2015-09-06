@@ -79,7 +79,7 @@ EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 		{
 			rb_write_upd (rb, n);
 
-			ast_debug (5, "[%s] receive %zu byte, used %zu, free %zu, read %zu, write %zu\n", 
+			ast_debug (5, "[%s] receive %zu byte, used %zu, free %zu, read %zu, write %zu\n",
 				dev, n, rb_used (rb), rb_free (rb), rb->read, rb->write);
 
 			iovcnt = rb_read_all_iov (rb, iov);

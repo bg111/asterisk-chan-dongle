@@ -1,4 +1,4 @@
-/*1
+/*
    Copyright (C) 2011 bg <bg_one@mail.ru>
 */
 #ifdef HAVE_CONFIG_H
@@ -20,7 +20,7 @@
 #include "manager.h"			/* manager_event_message_raw() */
 
 /*
-static const char sys_bus_usb_drivers_usb[] = "/sys/bus/usb/drivers/usb"; 
+static const char sys_bus_usb_drivers_usb[] = "/sys/bus/usb/drivers/usb";
 */
 static const char sys_bus_usb_devices[] = "/sys/bus/usb/devices";
 
@@ -94,7 +94,7 @@ static int ports_copy(struct pdiscovery_ports * dst, const struct pdiscovery_por
 			if(dst->ports[i] == NULL)
 				return 0;
 		}
-	return i;	
+	return i;
 }
 
 #/* */
@@ -114,12 +114,12 @@ static void info_free(struct pdiscovery_result * res)
 	if(res->imsi) {
 		ast_free(res->imsi);
 		res->imsi = NULL;
-	}	
+	}
 
 	if(res->imei) {
 		ast_free(res->imei);
 		res->imei = NULL;
-	}		
+	}
 }
 
 #/* */
@@ -152,7 +152,7 @@ static void cache_item_update(struct pdiscovery_cache_item * item, const struct 
 {
 	info_free(&item->res);
 	info_copy(&item->res, res);
-	
+
 	item->status = status;
 
 	item->validtill = ast_tvnow();
@@ -171,7 +171,7 @@ static struct pdiscovery_cache_item * cache_item_create(const struct pdiscovery_
 			item = NULL;
 		}
 	}
-	
+
 	return item;
 }
 
@@ -517,11 +517,8 @@ static int pdiscovery_handle_response(const struct pdiscovery_request * req, con
 		len--;
 		if(iovcnt == 2) {
 			str = alloca(len + 1);
-			if(!str) {
-				return 1;
-			memcpy(str                 , iov[0].iov_base, iov[0].iov_len);
+			memcpy(str, iov[0].iov_base, iov[0].iov_len);
 			memcpy(str + iov[0].iov_len, iov[1].iov_base, iov[1].iov_len);
-			}
 		} else {
 			str = iov[0].iov_base;
 		}
@@ -606,7 +603,7 @@ static int pdiscovery_get_info(const char * port, const struct pdiscovery_reques
 		unsigned want_imei = req->imei && res->imei == NULL;		// 1 && 0
 		unsigned want_imsi = req->imsi && res->imsi == NULL;		// 1 && 1
 		unsigned cmd = want_map[want_imei][want_imsi];
-		
+
 		/* clean queue first ? */
 		fail = pdiscovery_do_cmd(req, fd, port, cmds[cmd].cmd, cmds[cmd].length, res);
 		closetty(fd, &lock_file);
@@ -627,7 +624,7 @@ static int pdiscovery_get_info_cached(const char * port, const struct pdiscovery
 	} else {
 		ast_debug(4, "[%s discovery] %s use cached IMEI %s IMSI %s failed %d\n", req->name, port, S_OR(res->imei, ""), S_OR(res->imsi, ""), fail);
 	}
-		
+
 	return fail;
 }
 
@@ -689,11 +686,11 @@ static int pdiscovery_check_device(const char * name, int len, const char * subd
 
 	device = pdiscovery_lookup_ids(req->name, name2, len2);
 	if(device) {
-//		ast_debug(4, "[%s discovery] should ports <-> interfaces map for %04x:%04x modem=%02x voice=%02x data=%02x\n", 
-		ast_debug(4, "[%s discovery] should ports <-> interfaces map for %04x:%04x voice=%02x data=%02x\n", 
+//		ast_debug(4, "[%s discovery] should ports <-> interfaces map for %04x:%04x modem=%02x voice=%02x data=%02x\n",
+		ast_debug(4, "[%s discovery] should ports <-> interfaces map for %04x:%04x voice=%02x data=%02x\n",
 			req->name,
-			device->vendor_id, 
-			device->product_id, 
+			device->vendor_id,
+			device->product_id,
 //			device->interfaces[INTERFACE_TYPE_COM],
 			device->interfaces[INTERFACE_TYPE_VOICE],
 			device->interfaces[INTERFACE_TYPE_DATA]
@@ -750,7 +747,7 @@ EXPORT_DEF int pdiscovery_lookup(const char * devname, const char * imei, const 
 	int found;
 	struct pdiscovery_result res;
 	const struct pdiscovery_request req = {
-		devname, 
+		devname,
 		((imei && imei[0]) ? imei : NULL),
 		((imsi && imsi[0]) ? imsi : NULL),
 		};
@@ -771,9 +768,9 @@ EXPORT_DEF const struct pdiscovery_result * pdiscovery_list_begin(const struct p
 	const struct pdiscovery_cache_item * item;
 	struct pdiscovery_result res;
 	const struct pdiscovery_request req = {
-		"list", 
-		"ANY", 
-		"ANY", 
+		"list",
+		"ANY",
+		"ANY",
 		};
 
 	memset(&res, 0, sizeof(res));

@@ -107,15 +107,11 @@ void test_parse_creg()
 		fprintf(stderr, "%s(\"%s\")...", "at_parse_creg", input);
 		result.res = at_parse_creg(input, strlen(input), &result.gsm_reg, &result.gsm_reg_status, &result.lac, &result.ci);
 		if(result.res == cases[idx].result.res
-			&&
-		   result.gsm_reg == cases[idx].result.gsm_reg
-			&&
-		   result.gsm_reg_status == cases[idx].result.gsm_reg_status
-			&&
-		   strcmp(result.lac, cases[idx].result.lac) == 0
-			&&
-		   strcmp(result.ci, cases[idx].result.ci) == 0
-			) {
+			&& result.gsm_reg == cases[idx].result.gsm_reg
+			&& result.gsm_reg_status == cases[idx].result.gsm_reg_status
+			&& strcmp(result.lac, cases[idx].result.lac) == 0
+			&& strcmp(result.ci, cases[idx].result.ci) == 0)
+		{
 			msg = "OK";
 			ok++;
 		} else {
@@ -230,18 +226,13 @@ void test_parse_cmgr()
 		result.str = input = strdup(cases[idx].input);
 		fprintf(stderr, "%s(\"%s\")...", "at_parse_cmgr", input);
 		result.res = at_parse_cmgr(&result.str, strlen(result.str), result.oa, sizeof(oa), &result.oa_enc, &result.msg, &result.msg_enc);
-		if( ((result.res == NULL && result.res == cases[idx].result.res) || strcmp(result.res, cases[idx].result.res) == 0)
-			&&
-		   strcmp(result.str, cases[idx].result.str) == 0
-			&&
-		   strcmp(result.oa, cases[idx].result.oa) == 0
-			&&
-		   result.oa_enc == cases[idx].result.oa_enc
-			&&
-		   strcmp(result.msg, cases[idx].result.msg) == 0
-			&&
-		   result.msg_enc == cases[idx].result.msg_enc
-			) {
+		if(((result.res == NULL && result.res == cases[idx].result.res) || strcmp(result.res, cases[idx].result.res) == 0)
+			&& strcmp(result.str, cases[idx].result.str) == 0
+			&& strcmp(result.oa, cases[idx].result.oa) == 0
+			&& result.oa_enc == cases[idx].result.oa_enc
+			&& strcmp(result.msg, cases[idx].result.msg) == 0
+			&& result.msg_enc == cases[idx].result.msg_enc)
+		{
 			msg = "OK";
 			ok++;
 		} else {
@@ -281,13 +272,10 @@ void test_parse_cusd()
 		fprintf(stderr, "%s(\"%s\")...", "at_parse_cusd", input);
 		result.res = at_parse_cusd(input, &result.type, &result.cusd, &result.dcs);
 		if(result.res == cases[idx].result.res
-			&&
-		   result.type == cases[idx].result.type
-			&&
-		   result.dcs == cases[idx].result.dcs
-			&&
-		   strcmp(result.cusd, cases[idx].result.cusd) == 0
-			) {
+			&& result.type == cases[idx].result.type
+			&& result.dcs == cases[idx].result.dcs
+			&& strcmp(result.cusd, cases[idx].result.cusd) == 0)
+		{
 			msg = "OK";
 			ok++;
 		} else {
@@ -358,21 +346,14 @@ void test_parse_clcc()
 		fprintf(stderr, "%s(\"%s\")...", "at_parse_clcc", input);
 		result.res = at_parse_clcc(input, &result.index, &result.dir, &result.stat, &result.mode, &result.mpty, &result.number, &result.toa);
 		if(result.res == cases[idx].result.res
-			&&
-		   result.index == cases[idx].result.index
-			&&
-		   result.dir == cases[idx].result.dir
-			&&
-		   result.stat == cases[idx].result.stat
-			&&
-		   result.mode == cases[idx].result.mode
-			&&
-		   result.mpty == cases[idx].result.mpty
-			&&
-		   strcmp(result.number, cases[idx].result.number) == 0
-			&&
-		   result.toa == cases[idx].result.toa
-			) {
+			&& result.index == cases[idx].result.index
+			&& result.dir == cases[idx].result.dir
+			&& result.stat == cases[idx].result.stat
+			&& result.mode == cases[idx].result.mode
+			&& result.mpty == cases[idx].result.mpty
+			&& strcmp(result.number, cases[idx].result.number) == 0
+			&& result.toa == cases[idx].result.toa)
+		{
 			msg = "OK";
 			ok++;
 		} else {

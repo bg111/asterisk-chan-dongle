@@ -78,7 +78,7 @@ static ssize_t hexstr_to_8bitchars (const char* in, size_t in_length, char* out,
 		return -ENOMEM;
 	}
 	out_size = in_length;
-	
+
 	for (; in_length; --in_length)
 	{
 		d1 = parse_hexdigit(*in++);
@@ -105,7 +105,7 @@ static ssize_t chars8bit_to_hexstr (const char* in, size_t in_length, char* out,
 		return -1;
 	}
 	out_size = in_length * 2;
-	
+
 	for (; in_length; --in_length, ++in2)
 	{
 		*out++ = hex_table[*in2 >> 4];

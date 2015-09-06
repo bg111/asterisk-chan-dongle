@@ -10,7 +10,7 @@
 #include <asterisk/channel.h>
 
 /* Asterisk 11+ channel opaqification */
-#if ASTERISK_VERSION_NUM < 110000
+#if ASTERISK_VERSION_NUM < 110000 /* 11- */
 
 /* channel->name */
 static inline const char *ast_channel_name(const struct ast_channel *chan) { return chan->name; }
@@ -44,13 +44,13 @@ static inline const char *ast_channel_linkedid(const struct ast_channel *chan) {
 /* channel->hangupcause */
 static inline void ast_channel_hangupcause_set(struct ast_channel *chan, int value) { chan->hangupcause = value; }
 
-#if ASTERISK_VERSION_NUM >= 100000
+#if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
 /* channel->*format* */
 static inline struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan) { return chan->nativeformats; }
 static inline struct ast_format ast_channel_readformat(const struct ast_channel *chan) { return chan->readformat; }
 static inline struct ast_format ast_channel_writeformat(const struct ast_channel *chan) { return chan->writeformat; }
-#endif
+#endif /* ^10+ */
 
-#endif
+#endif /* ^11- */
 
 #endif /* CHAN_DONGLE_AST_COMPAT_H_INCLUDED */

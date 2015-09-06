@@ -3,12 +3,12 @@
 #endif /* HAVE_CONFIG_H */
 
 #ifdef BUILD_APPLICATIONS
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
@@ -124,7 +124,7 @@ static const struct dongle_application
 	int		(*func)(struct ast_channel* channel, const char* data);
 	const char*	synopsis;
 	const char*	desc;
-} dca[] = 
+} dca[] =
 {
 	{
 		"DongleStatus",
@@ -138,7 +138,7 @@ static const struct dongle_application
 	{
 		"DongleSendSMS",
 		app_send_sms_exec,
-		"DongleSendSMS(Device,Dest,Message,Validity,Report)", 
+		"DongleSendSMS(Device,Dest,Message,Validity,Report)",
 		"DongleSendSMS(Device,Dest,Message,Validity,Report)\n"
 		"  Device   - Id of device from dongle.conf\n"
 		"  Dest     - destination\n"
@@ -148,11 +148,11 @@ static const struct dongle_application
 	}
 };
 
-#if ASTERISK_VERSION_NUM >= 10800
-typedef int		(*app_func_t)(struct ast_channel* channel, const char * data);
-#else
-typedef int		(*app_func_t)(struct ast_channel* channel, void * data);
-#endif
+#if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
+typedef int (*app_func_t)(struct ast_channel *channel, const char *data);
+#else /* 1.8- */
+typedef int (*app_func_t)(struct ast_channel *channel, void *data);
+#endif /* ^1.8- */
 
 #/* */
 EXPORT_DEF void app_register()
