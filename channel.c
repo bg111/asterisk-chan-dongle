@@ -1028,7 +1028,9 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 		case AST_CONTROL_PROCEEDING:
 		case AST_CONTROL_VIDUPDATE:
 		case AST_CONTROL_SRCUPDATE:
-		case AST_CONTROL_PVT_CAUSE_CODE://33
+#if ASTERISK_VERSION_NUM >= 110000 /* 11+ */
+		case AST_CONTROL_PVT_CAUSE_CODE:
+#endif /* ^11+ */
 			break;
 
 		case AST_CONTROL_HOLD:
