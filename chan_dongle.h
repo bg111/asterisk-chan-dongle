@@ -41,7 +41,6 @@ INLINE_DECL const char * dev_state2str_msg(dev_state_t state)
 #if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
 /* Only linear is allowed */
 EXPORT_DECL struct ast_format chan_dongle_format;
-//EXPORT_DEF struct ast_format chan_dongle_format;
 EXPORT_DECL struct ast_format_cap * chan_dongle_format_cap;
 #endif /* ^10-13 */
 

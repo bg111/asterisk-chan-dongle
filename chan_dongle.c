@@ -1662,7 +1662,6 @@ static int public_state_init(struct public_state * state)
 				return AST_MODULE_LOAD_FAILURE;
 			}
 			ast_format_cap_append(channel_tech.capabilities, ast_format_slin, 0);
-			//chan_dongle_format_cap = channel_tech.capabilities;
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
 			ast_format_set(&chan_dongle_format, AST_FORMAT_SLINEAR, 0);
 			if (!(channel_tech.capabilities = ast_format_cap_alloc())) {

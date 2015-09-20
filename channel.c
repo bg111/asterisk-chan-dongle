@@ -679,7 +679,7 @@ static struct ast_frame* channel_read (struct ast_channel* channel)
 
 		cpvt->a_read_frame.frametype = AST_FRAME_VOICE;
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-		cpvt->a_read_frame.subclass.format = ao2_bump(ast_format_slin);
+		cpvt->a_read_frame.subclass.format = ast_format_slin;
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
 		ast_format_copy(&cpvt->a_read_frame.subclass.format, &chan_dongle_format);
 #else /* 10- */
@@ -1265,21 +1265,29 @@ EXPORT_DEF struct ast_channel* new_channel(
 			ast_channel_tech_set(channel, &channel_tech);
 
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-			ast_format_cap_append(ast_channel_nativeformats(channel), ast_format_slin, 0);
+			ast_channel_nativeformats_set(channel, channel_tech.capabilities);
+			ast_channel_set_rawreadformat(channel, ast_format_slin);
+			ast_channel_set_rawwriteformat(channel, ast_format_slin);
 			ast_channel_set_writeformat(channel, ast_format_slin);
 			ast_channel_set_readformat(channel, ast_format_slin);
 #elif ASTERISK_VERSION_NUM >= 110000 /* 11+ */
-			ast_format_set(ast_channel_readformat(channel), AST_FORMAT_SLINEAR, 0);
-			ast_format_set(ast_channel_writeformat(channel), AST_FORMAT_SLINEAR, 0);
-			ast_format_cap_set(ast_channel_nativeformats(channel), ast_channel_writeformat(channel));
+		        ast_format_cap_add(ast_channel_nativeformats(channel), &chan_dongle_format);
+		        ast_format_copy(ast_channel_rawreadformat(channel), &chan_dongle_format);
+		        ast_format_copy(ast_channel_rawwriteformat(channel), &chan_dongle_format);
+		        ast_format_copy(ast_channel_writeformat(channel), &chan_dongle_format);
+		        ast_format_copy(ast_channel_readformat(channel), &chan_dongle_format);
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10+ */
-			ast_format_set(&channel->readformat, AST_FORMAT_SLINEAR, 0);
-			ast_format_set(&channel->writeformat, AST_FORMAT_SLINEAR, 0);
-			ast_format_cap_set(channel->nativeformats, &channel->writeformat);
+		        ast_format_cap_add(channel->nativeformats, &chan_dongle_format);
+		        ast_format_copy(&channel->rawreadformat, &chan_dongle_format);
+		        ast_format_copy(&channel->rawwriteformat, &chan_dongle_format);
+		        ast_format_copy(&channel->writeformat, &chan_dongle_format);
+		        ast_format_copy(&channel->readformat, &chan_dongle_format);
 #else /* 10- */
 			channel->nativeformats	= AST_FORMAT_SLINEAR;
-			channel->writeformat	= AST_FORMAT_SLINEAR;
+			channel->rawreadformat	= AST_FORMAT_SLINEAR;
+			channel->rawwriteformat	= AST_FORMAT_SLINEAR;
 			channel->readformat	= AST_FORMAT_SLINEAR;
+			channel->writeformat	= AST_FORMAT_SLINEAR;
 #endif /* ^10- */
 
 			if (ast_state == AST_STATE_RING)
