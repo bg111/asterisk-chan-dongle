@@ -868,10 +868,10 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 // FIXME: not execute if channel_new() failed
 	CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 
-	// ast_pbx_start() usually failed if asterisk.conf minmemfree set too low, try drop buffer cache sync && echo 3 > /proc/sys/vm/drop_caches
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-	ast_channel_unlock(channel);
-#endif /* ^13+ */
+	/* ast_pbx_start() usually failed if asterisk.conf minmemfree
+	 * set too low, try drop buffer cache
+	 * sync && echo 3 >/proc/sys/vm/drop_caches
+	 */
 	if (ast_pbx_start (channel))
 	{
 		ast_channel_tech_pvt_set(channel, NULL);

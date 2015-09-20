@@ -1296,6 +1296,13 @@ EXPORT_DEF struct ast_channel* new_channel(
 
 			ast_module_ref (self_module());
 
+#if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
+			/* commit e2630fcd516b8f794bf342d9fd267b0c905e79ce
+			 * Date:   Wed Dec 18 19:28:05 2013 +0000a
+			 * ast_channel_alloc() returns allocated channels locked. */
+			ast_channel_unlock(channel);
+#endif /* ^12+ */
+
 			return channel;
 		}
 		cpvt_free(cpvt);
