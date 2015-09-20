@@ -23,6 +23,15 @@ AC_ARG_WITH(
 	[ with_asterisk="../include /usr/include /usr/local/include /opt/local/include" ]
 )
 
+dnl  Required: asterisk version
+AC_ARG_WITH(
+	[astversion],
+	AS_HELP_STRING([--with-astversion=MMmmuu], [set asterisk version to 10813 for version 1.8.13]),
+	[ if ! test "$((with_astversion + 0))" -eq "$with_astversion" ; then AC_MSG_ERROR([Invalid --with-astversion=MMmmuu value]); fi ],
+	[ AC_MSG_ERROR([Please set --with-astversion=MMmmuu (major.minor.micro)]) ]
+)
+CPPFLAGS="$CPPFLAGS -DASTERISK_VERSION_NUM=$with_astversion"
+
 AC_ARG_ENABLE(
 	[debug], 
 	AS_HELP_STRING([--enable-debug], [enable code debugging]),
