@@ -151,23 +151,28 @@ static struct ast_channel * channel_request(
 
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 	if (ast_format_cap_iscompatible_format(cap, ast_format_slin) != AST_FORMAT_CMP_EQUAL)
+	{
+		struct ast_str *codec_buf = ast_str_alloca(64);
+		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
+				ast_format_cap_get_names(cap, &codec_buf));
+		*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
+		return NULL;
+	}
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
 	if (!ast_format_cap_iscompatible(cap, &chan_dongle_format))
+	{
+		char buf[255];
+		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
+				ast_getformatname_multiple(buf, 255, cap));
+		*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
+		return NULL;
+	}
 #else /* 10- */
 	oldformat = format;
 	format &= AST_FORMAT_SLINEAR;
 	if (!format)
-#endif /* ^10- */
 	{
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-		struct ast_str *codec_buf = ast_str_alloca(64);
-		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
-				ast_format_cap_get_names(cap, &codec_buf));
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-		char buf[255];
-		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
-				ast_getformatname_multiple(buf, 255, cap));
-#elif ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
+#if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
 				ast_getformatname(oldformat));
 #else /* 1.8- */
@@ -177,6 +182,7 @@ static struct ast_channel * channel_request(
 		*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
 		return NULL;
 	}
+#endif /* ^10- */
 
 	dest_dev = ast_strdupa (data);
 
