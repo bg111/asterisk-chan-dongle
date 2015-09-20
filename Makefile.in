@@ -61,7 +61,7 @@ $(PROJS): $(chan_dongles_so_OBJS) Makefile
 	$(CHMOD) 755 $@
 	mv $@ chan_dongle.so
 
-.c.o:
+.c.o: Makefile config.h
 	$(CC) $(CFLAGS) $(MAKE_DEPS) -o $@ -c $<
 
 tests: test/test1 test/parse
@@ -88,8 +88,8 @@ dist: $(SOURCES) $(HEADERS) $(EXTRA_DIST) $(BUILD_TOOLS)
 	tar czf $(DISTNAME).tgz $(DISTNAME) --exclude .svn -h
 	@$(RM) $(DISTNAME)
 
-${srcdir}/configure: configure.in
-	cd ${srcdir} && autoconf
+configure: configure.in
+	autoconf
 
 config.h: stamp-h
 stamp-h: config.h.in config.status
