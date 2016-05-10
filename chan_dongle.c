@@ -36,7 +36,10 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <asterisk.h>
+
+#if ASTERISK_VERSION_NUM < 140000 /* 14- */
 ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
+#endif /* 14- */
 
 #include <asterisk/stringfields.h>	/* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/manager.h>

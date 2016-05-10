@@ -933,6 +933,10 @@ static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE (cli_discovery,		"Discovery devices and create config"),
 };
 
+#if ASTERISK_VERSION_NUM >= 140000 /* 14+ */
+# define AST_MODULE_SELF self_module()
+#endif /* 14+ */
+
 #/* */
 EXPORT_DEF void cli_register()
 {
