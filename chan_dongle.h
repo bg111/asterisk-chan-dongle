@@ -1,9 +1,12 @@
-/* 
-   Copyright (C) 2009 - 2010
-   
+/*
+   Copyright (C) 2009-2015
+
+   bg <bg_one@mail.ru>
+   http://www.e1550.mobi
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 */
 #ifndef CHAN_DONGLE_H_INCLUDED
@@ -13,6 +16,8 @@
 #include <asterisk/lock.h>
 #include <asterisk/linkedlists.h>
 
+#include "ast_compat.h"				/* asterisk compatibility fixes */
+
 #include "mixbuffer.h"				/* struct mixbuffer */
 //#include "ringbuffer.h"				/* struct ringbuffer */
 #include "cpvt.h"				/* struct cpvt */
@@ -20,7 +25,7 @@
 #include "dc_config.h"				/* pvt_config_t */
 
 #define MODULE_DESCRIPTION	"Huawei 3G Dongle Channel Driver"
-#define MAXDONGLEDEVICES	256
+#define MAXDONGLEDEVICES	128
 
 INLINE_DECL const char * dev_state2str(dev_state_t state)
 {
@@ -33,9 +38,11 @@ INLINE_DECL const char * dev_state2str_msg(dev_state_t state)
 	return enum2str(state, states, ITEMS_OF(states));
 }
 
+#if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
 /* Only linear is allowed */
 EXPORT_DECL struct ast_format chan_dongle_format;
 EXPORT_DECL struct ast_format_cap * chan_dongle_format_cap;
+#endif /* ^10-13 */
 
 typedef enum {
 	RESTATE_TIME_NOW	= 0,
@@ -123,7 +130,7 @@ typedef struct pvt
 //	char			a_read_buf[FRAME_SIZE + AST_FRIENDLY_OFFSET];	/*!< audio read buffer */
 //	struct ast_frame	a_read_frame;			/*!< readed frame buffer */
 
-	
+
 	char			dtmf_digit;			/*!< last DTMF digit */
 	struct timeval		dtmf_begin_time;		/*!< time of begin of last DTMF digit */
 	struct timeval		dtmf_end_time;			/*!< time of end of last DTMF digit */
@@ -131,7 +138,7 @@ typedef struct pvt
 	int			timeout;			/*!< used to set the timeout for data */
 #define DATA_READ_TIMEOUT	10000				/* 10 seconds */
 
-	unsigned long		channel_instanse;		/*!< number of channels created on this device */
+	unsigned long		channel_instance;		/*!< number of channels created on this device */
 	unsigned int		rings;				/*!< ring/ccwa  number distributed to at_response_clcc() */
 
 	/* device caps */
@@ -209,8 +216,8 @@ typedef struct public_state
 	ast_mutex_t			discovery_lock;
 	pthread_t			discovery_thread;		/* The discovery thread handler */
 	volatile int			unloading_flag;			/* no need mutex or other locking for protect this variable because no concurent r/w and set non-0 atomically */
-	ast_mutex_t			round_robin_mtx;
-	struct pvt			* round_robin[MAXDONGLEDEVICES];
+//	ast_mutex_t			round_robin_mtx;
+//	struct pvt			* round_robin[MAXDONGLEDEVICES];	// TODO: remove and make local variable of find_device_by_resource_ex()
 	struct dc_gconfig		global_settings;
 } public_state_t;
 

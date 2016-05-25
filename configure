@@ -2377,7 +2377,6 @@ test -n "$target_alias" &&
   test "$program_prefix$program_suffix$program_transform_name" = \
     NONENONEs,x,x, &&
   program_prefix=${target_alias}-
-AM_INIT_AUTOMAKE
 ac_config_headers="$ac_config_headers config.h"
 
 

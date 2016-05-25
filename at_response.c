@@ -1,9 +1,9 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
@@ -15,6 +15,8 @@
 #include <asterisk.h>
 #include <asterisk/logger.h>			/* ast_debug() */
 #include <asterisk/pbx.h>			/* ast_pbx_start() */
+
+#include "ast_compat.h"				/* asterisk compatibility fixes */
 
 #include "at_response.h"
 #include "mutils.h"				/* STRLEN() */
@@ -45,9 +47,6 @@ static const at_response_t at_responses_list[] = {
 
 	{ RES_CMGR, "+CMGR",DEF_STR("+CMGR:") },
 	{ RES_CMS_ERROR, "+CMS ERROR",DEF_STR("+CMS ERROR:") },
-	{ RES_CDS,  "+CDS", DEF_STR("+CDS:") },
-	{ RES_CDSI, "+CDSI",DEF_STR("+CDSI:") },
-	{ RES_CMT,  "+CMT", DEF_STR("+CMT:") },
 	{ RES_CMTI, "+CMTI",DEF_STR("+CMTI:") },
 	{ RES_CNUM, "+CNUM",DEF_STR("+CNUM:") },		/* and "ERROR+CNUM:" */
 
@@ -216,7 +215,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_A:
 			case CMD_AT_CHLD_2x:
-/* not work, ^CONN: appear before OK for CHLD_ANSWER 
+/* not work, ^CONN: appear before OK for CHLD_ANSWER
 				task->cpvt->answered = 1;
 				task->cpvt->needhangup = 1;
 */
@@ -326,7 +325,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 	{
 		switch (ecmd->cmd)
 		{
-        		/* critical errors */
+			/* critical errors */
 			case CMD_AT:
 			case CMD_AT_Z:
 			case CMD_AT_E:
@@ -841,7 +840,17 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 	struct cpvt* cpvt;
 
 	/* TODO: pass also Subscriber number or other DID info for exten  */
-	struct ast_channel * channel = new_channel (pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state, pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten), NULL);
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	struct ast_channel * channel = new_channel(
+			pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
+			pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten),
+			NULL, NULL);
+#else /* 13- */
+	struct ast_channel * channel = new_channel(
+			pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
+			pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten),
+			NULL);
+#endif /* ^13- */
 
 	if (!channel)
 	{
@@ -859,7 +868,10 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 // FIXME: not execute if channel_new() failed
 	CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 
-	// ast_pbx_start() usually failed if asterisk.conf minmemfree set too low, try drop buffer cache sync && echo 3 > /proc/sys/vm/drop_caches
+	/* ast_pbx_start() usually failed if asterisk.conf minmemfree
+	 * set too low, try drop buffer cache
+	 * sync && echo 3 >/proc/sys/vm/drop_caches
+	 */
 	if (ast_pbx_start (channel))
 	{
 		ast_channel_tech_pvt_set(channel, NULL);
@@ -1044,7 +1056,7 @@ static int at_response_ccwa(struct pvt* pvt, char* str)
 	int status, n;
 	unsigned class;
 
-	/* 
+	/*
 	 * CCWA may be in form:
 	 *	in response of AT+CCWA=?
 	 *		+CCWA: (0,1)
@@ -1126,247 +1138,6 @@ static int at_response_ring (struct pvt* pvt)
 }
 
 /*!
- * \brief Handle +CDS response
- * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
- * \param len -- string lenght
- * \retval  0 success
- * \retval -1 error
- */
-
-static int at_response_cds (struct pvt* pvt, const char * str, size_t len)
-{
-	char		oa[512] = "";
-	str_encoding_t	oa_enc;
-	const char*	err;
-	char*		err_pos;
-	char*		cds;
-	ssize_t		res;
-	char*		number="";
-	char		from_number_utf8_str[1024];
- 	char		pdu[4096];
-
-	at_queue_handle_result (pvt, RES_CDS);
-	pvt_try_restate(pvt);
-
-	manager_event_message("DongleNewCDS", PVT_ID(pvt), str);
-
-	ast_log (LOG_NOTICE, "[%s] at_response_cds %.*s\n", PVT_ID(pvt),(int) len, str);
-
-	memset(pdu,0,sizeof(pdu));
-
-	do {
-
-	cds = err_pos = ast_strdupa (str);
-	err = at_parse_cds (&err_pos, len, oa, sizeof(oa), &oa_enc, pdu, sizeof(pdu));
-	if (err)
-	{
-		ast_log (LOG_WARNING, "[%s] Error parsing incoming message '%s' at possition %d: %s\n", PVT_ID(pvt), str, (int)(err_pos - cds), err);
-		break;
-	}
-
-	ast_debug (1, "[%s] Successfully read SMS message\n", PVT_ID(pvt));
-
-	/* last chance to define encodings */
-	if (oa_enc == STR_ENCODING_UNKNOWN)
-		oa_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
-
-	/* decode number and message */
-	res = str_recode (RECODE_DECODE, oa_enc, oa, strlen(oa), from_number_utf8_str, sizeof (from_number_utf8_str));
-	if (res < 0)
-	{
-		ast_log (LOG_ERROR, "[%s] Error decode SMS originator address: '%s', message is '%s'\n", PVT_ID(pvt), oa, str);
-		number = oa;
-		break;
-	}
-	else
-		number = from_number_utf8_str;
-
-	} while (0);
-
-	ast_verb (1, "[%s] Got SMS recipt from %s\n", PVT_ID(pvt), number);
-
-	manager_event_new_sms_receipt(PVT_ID(pvt), number, pdu);
-	{
-		channel_var_t vars[] = 
-		{
-			{ "CDS", (char *)str },
-			{ "PDU", pdu },
-			{ NULL, NULL },
-		};
-		start_local_channel (pvt, "smscds", number, vars);
-	}
-
-	return 0;
-}
-
-
-/*!
- * \brief Handle +CDSI response
- * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
- * \param len -- string lenght
- * \retval  0 success
- * \retval -1 error
- */
-
-static int at_response_cdsi (struct pvt* pvt, const char* str)
-{
-// FIXME: check format in PDU mode
-	int index = at_parse_cdsi (str);
-
-	if (index > -1)
-	{
-		ast_debug (1, "[%s] Incoming SMS STATUS report\n", PVT_ID(pvt));
-
-		if (CONF_SHARED(pvt, disablesms))
-		{
-			ast_log (LOG_WARNING, "[%s] SMS reception has been disabled in the configuration.\n", PVT_ID(pvt));
-		}
-		else if(pvt_enabled(pvt))
-		{
-			if (at_enque_retrive_sms (&pvt->sys_chan, index, CONF_SHARED(pvt, autodeletesms)))
-			{
-				ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
-				return -1;
-			}
-			else
-			    pvt->incoming_sms = 1;
-		}
-
-		return 0;
-	}
-	else
-	{
-		ast_log (LOG_ERROR, "[%s] Error parsing incoming sms message alert '%s', disconnecting\n", PVT_ID(pvt), str);
-		return -1;
-	}
-}
-
-
-/*!
- * \brief Handle +CMT response
- * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
- * \param len -- string lenght
- * \retval  0 success
- * \retval -1 error
- */
-
-static int at_response_cmt (struct pvt* pvt, const char * str, size_t len)
-{
-	char		oa[512] = "";
-	char*		msg = "";
-	str_encoding_t	oa_enc;
-	str_encoding_t	msg_enc;
-	const char*	err;
-	char*		err_pos;
-	char*		cmt;
-	ssize_t		res;
-	char		sms_utf8_str[4096];
-	char*		number="";
-	char		from_number_utf8_str[1024];
-	char		text_base64[16384];
-	size_t		msg_len=0;
- 	char		pdu[4096];
-
-
-	at_queue_handle_result (pvt, RES_CMT);
-	pvt_try_restate(pvt);
-
-
-	manager_event_message("DongleNewCMT", PVT_ID(pvt), str);
-
-	ast_log (LOG_NOTICE, "[%s] at_response_cmt %.*s\n", PVT_ID(pvt),(int) len, str);
-
-	cmt = err_pos = ast_strdupa (str);
-
-	memset(pdu,0,4096);
-	
-	do {
-
-	err = at_parse_cmt (&err_pos, len, oa, sizeof(oa), &oa_enc, &msg, &msg_enc, pdu, sizeof(pdu));
-	if (err)
-	{
-		ast_log (LOG_WARNING, "[%s] Error parsing incoming message '%s' at possition %d: %s\n", PVT_ID(pvt), str, (int)(err_pos - cmt), err);
-		msg_len=0;
-		break;
-	}
-
-	ast_debug (1, "[%s] Successfully read SMS message\n", PVT_ID(pvt));
-
-	/* last chance to define encodings */
-	if (oa_enc == STR_ENCODING_UNKNOWN)
-		oa_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
-
-	if (msg_enc == STR_ENCODING_UNKNOWN)
-		msg_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
-
-	/* decode number and message */
-	res = str_recode (RECODE_DECODE, oa_enc, oa, strlen(oa), from_number_utf8_str, sizeof (from_number_utf8_str));
-	if (res < 0)
-	{
-		ast_log (LOG_ERROR, "[%s] Error decode SMS originator address: '%s', message is '%s'\n", PVT_ID(pvt), oa, str);
-		number = oa;
-		msg_len=0;
-		break;
-	}
-	else
-		number = from_number_utf8_str;
-
-	msg_len = strlen(msg);
-	res = str_recode (RECODE_DECODE, msg_enc, msg, msg_len, sms_utf8_str, sizeof (sms_utf8_str));
-	if (res < 0)
-	{
-		ast_log (LOG_ERROR, "[%s] Error decode SMS text '%s' from encoding %d, message is '%s'\n", PVT_ID(pvt), msg, msg_enc, str);
-		msg_len=0;
-		break;
-	}
-	else
-	{
-		msg = sms_utf8_str;
-		msg_len = res;
-	}
-
-#if 0
-	if (at_enque_ack_sms (&pvt->sys_chan))
-	{
-		ast_log (LOG_ERROR, "[%s] Error sending CMNA to ack SMS message\n", PVT_ID(pvt));
-		return -1;
-	}
-#endif
-
-	} while (0);
-
-	ast_verb (1, "[%s] Got SMS from %s: '%s'\n", PVT_ID(pvt), number, msg);
-
-	if (msg && (msg_len>0)) {
-		ast_base64encode (text_base64, (unsigned char*)msg, msg_len, sizeof(text_base64));
-	} else {
-		msg="";
-		text_base64[0]=0;
-		number="";
-	}
-
-	manager_event_new_sms(PVT_ID(pvt), number, msg);
-	manager_event_new_sms_base64(PVT_ID(pvt), number, text_base64, pdu);
-
-	{
-		channel_var_t vars[] = 
-		{
-			{ "SMS", msg } ,
-			{ "SMS_BASE64", text_base64 },
-			{ "CMT", (char *) str },
-			{ "PDU", pdu },
-			{ NULL, NULL },
-		};
-		start_local_channel (pvt, "sms", number, vars);
-	}
-
-	return 0;
-}
-
-/*!
  * \brief Handle +CMTI response
  * \param pvt -- pvt structure
  * \param str -- string containing response (null terminated)
@@ -1396,7 +1167,9 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 				return -1;
 			}
 			else
-			    pvt->incoming_sms = 1;
+			{
+				pvt->incoming_sms = 1;
+			}
 		}
 
 		return 0;
@@ -1405,30 +1178,6 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 	{
 		ast_log (LOG_ERROR, "[%s] Error parsing incoming sms message alert '%s', disconnecting\n", PVT_ID(pvt), str);
 		return -1;
-	}
-}
-
-
-/*!
- * \brief Handle +CMGS response
- * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
- * \retval  0 success
- * \retval -1 error
- */
-
-static void at_response_cmgs (struct pvt* pvt, const char* str)
-{
-	int reference = at_parse_cmgs (str);
-
-	const struct at_queue_cmd * ecmd = at_queue_head_cmd (pvt);
-	const at_queue_task_t * task = at_queue_head_task (pvt);
-
-	if (ecmd && ecmd->cmd == CMD_AT_SMSTEXT)
-	{
-	    
-		manager_event_sms_reference(PVT_ID(pvt), task, reference);
-		ast_log (LOG_NOTICE, "[%s] SMS message %p reference %d str %s\n", PVT_ID(pvt), task, reference, str);
 	}
 }
 
@@ -1444,7 +1193,7 @@ static void at_response_cmgs (struct pvt* pvt, const char* str)
 static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 {
 	char		oa[512] = "";
-	char*		msg = "";
+	char*		msg = NULL;
 	str_encoding_t	oa_enc;
 	str_encoding_t	msg_enc;
 	const char*	err;
@@ -1452,10 +1201,9 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 	char*		cmgr;
 	ssize_t		res;
 	char		sms_utf8_str[4096];
-	char*		number="";
+	char*		number;
 	char		from_number_utf8_str[1024];
 	char		text_base64[16384];
-	char 		pdu[4096];
 	size_t		msg_len;
 
 	const struct at_queue_cmd * ecmd = at_queue_head_cmd (pvt);
@@ -1463,87 +1211,82 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 	manager_event_message("DongleNewCMGR", PVT_ID(pvt), str);
 	if (ecmd)
 	{
-	    if (ecmd->res == RES_CMGR || ecmd->cmd == CMD_USER)
-	    {
-		at_queue_handle_result (pvt, RES_CMGR);
-		pvt->incoming_sms = 0;
-		pvt_try_restate(pvt);
-
-		do {
-		
-		cmgr = err_pos = ast_strdupa (str);
-		err = at_parse_cmgr (&err_pos, len, oa, sizeof(oa), &oa_enc, &msg, &msg_enc, pdu, sizeof(pdu));
-		if (err)
+		if (ecmd->res == RES_CMGR || ecmd->cmd == CMD_USER)
 		{
-			ast_log (LOG_WARNING, "[%s] Error parsing incoming message '%s' at possition %d: %s\n", PVT_ID(pvt), str, (int)(err_pos - cmgr), err);
-			msg_len=0;
-			break;
-		}
+			at_queue_handle_result (pvt, RES_CMGR);
+			pvt->incoming_sms = 0;
+			pvt_try_restate(pvt);
 
-		ast_debug (1, "[%s] Successfully read SMS message\n", PVT_ID(pvt));
-
-		/* last chance to define encodings */
-		if (oa_enc == STR_ENCODING_UNKNOWN)
-			oa_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
-
-		if (msg_enc == STR_ENCODING_UNKNOWN)
-			msg_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
-
-		/* decode number and message */
-		res = str_recode (RECODE_DECODE, oa_enc, oa, strlen(oa), from_number_utf8_str, sizeof (from_number_utf8_str));
-		if (res < 0)
-		{
-			ast_log (LOG_ERROR, "[%s] Error decode SMS originator address: '%s', message is '%s'\n", PVT_ID(pvt), oa, str);
-			number = oa;
-			msg_len=0;
-			break;
-		}
-		else
-			number = from_number_utf8_str;
-
-		msg_len = strlen(msg);
-		res = str_recode (RECODE_DECODE, msg_enc, msg, msg_len, sms_utf8_str, sizeof (sms_utf8_str));
-		if (res < 0)
-		{
-			ast_log (LOG_ERROR, "[%s] Error decode SMS text '%s' from encoding %d, message is '%s'\n", PVT_ID(pvt), msg, msg_enc, str);
-			msg_len=0;
-			break;
-		}
-		else
-		{
-			msg = sms_utf8_str;
-			msg_len = res;
-		}
-		} while(0);
-
-
-		if (msg && (msg_len>0)) {
-			ast_base64encode (text_base64, (unsigned char*)msg, msg_len, sizeof(text_base64));
-		} else {
-			msg="";
-			text_base64[0]=0;
-			number="";
-		}
-
-		manager_event_new_sms(PVT_ID(pvt), number, msg);
-		manager_event_new_sms_base64(PVT_ID(pvt), number, text_base64, pdu);
-		{
-			channel_var_t vars[] = 
+			cmgr = err_pos = ast_strdupa (str);
+			err = at_parse_cmgr (&err_pos, len, oa, sizeof(oa), &oa_enc, &msg, &msg_enc); // YYY
+			if (err == (void*)0x1) /* HACK! */
 			{
-				{ "SMS", msg } ,
-				{ "SMS_BASE64", text_base64 },
-				{ "CMGR", (char *)str },
-				{ "PDU", pdu },
-				{ NULL, NULL },
-			};
-			start_local_channel (pvt, "sms", number, vars);
+				char buf[64];
+				int res = (int)(long)msg; /* HACK */
+				snprintf(buf, 64, "Delivered\r\nForeignID: %d", res);
+				manager_event_sent_notify(PVT_ID(pvt), "SMS", 0x0 /* task is popped */, buf);
+				return 0;
+			}
+			else if (err)
+			{
+				ast_log (LOG_WARNING, "[%s] Error parsing incoming message '%s' at possition %d: %s\n", PVT_ID(pvt), str, (int)(err_pos - cmgr), err);
+				return 0;
+			}
+
+			ast_debug (1, "[%s] Successfully read SMS message\n", PVT_ID(pvt));
+
+			/* last chance to define encodings */
+			if (oa_enc == STR_ENCODING_UNKNOWN)
+				oa_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
+
+			if (msg_enc == STR_ENCODING_UNKNOWN)
+				msg_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
+
+			/* decode number and message */
+			res = str_recode (RECODE_DECODE, oa_enc, oa, strlen(oa), from_number_utf8_str, sizeof (from_number_utf8_str));
+			if (res < 0)
+			{
+				ast_log (LOG_ERROR, "[%s] Error decode SMS originator address: '%s', message is '%s'\n", PVT_ID(pvt), oa, str);
+				number = oa;
+				return 0;
+			}
+			else
+				number = from_number_utf8_str;
+
+			msg_len = strlen(msg);
+			res = str_recode (RECODE_DECODE, msg_enc, msg, msg_len, sms_utf8_str, sizeof (sms_utf8_str));
+			if (res < 0)
+			{
+				ast_log (LOG_ERROR, "[%s] Error decode SMS text '%s' from encoding %d, message is '%s'\n", PVT_ID(pvt), msg, msg_enc, str);
+				return 0;
+			}
+			else
+			{
+				msg = sms_utf8_str;
+				msg_len = res;
+			}
+
+			ast_verb (1, "[%s] Got SMS from %s: '%s'\n", PVT_ID(pvt), number, msg);
+			ast_base64encode (text_base64, (unsigned char*)msg, msg_len, sizeof(text_base64));
+
+			manager_event_new_sms(PVT_ID(pvt), number, msg);
+			manager_event_new_sms_base64(PVT_ID(pvt), number, text_base64);
+			{
+				channel_var_t vars[] =
+				{
+					{ "SMS", msg } ,
+					{ "SMS_BASE64", text_base64 },
+					{ "CMGR", (char *)str },
+					{ NULL, NULL },
+				};
+				start_local_channel (pvt, "sms", number, vars);
+			}
 		}
-	    }
-	    else
-	    {
-		ast_log (LOG_ERROR, "[%s] Received '+CMGR' when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
-				at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
-	    }
+		else
+		{
+			ast_log (LOG_ERROR, "[%s] Received '+CMGR' when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
+					at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
+		}
 	}
 	else
 	{
@@ -1646,14 +1389,13 @@ static int at_response_cusd (struct pvt * pvt, char * str, size_t len)
 
 	ast_verb (1, "[%s] Got USSD type %d '%s': '%s'\n", PVT_ID(pvt), type, typestr, cusd);
 	ast_base64encode (text_base64, (unsigned char*)cusd, strlen(cusd), sizeof(text_base64));
-	text_base64[0]=0;
 
 	// TODO: pass type
 	manager_event_new_ussd(PVT_ID(pvt), cusd);
 	manager_event_message("DongleNewUSSDBase64", PVT_ID(pvt), text_base64);
 
 	{
-		channel_var_t vars[] = 
+		channel_var_t vars[] =
 		{
 			{ "USSD_TYPE", typebuf },
 			{ "USSD_TYPE_STR", ast_strdupa(typestr) },
@@ -1874,6 +1616,7 @@ static int at_response_cgmm (struct pvt* pvt, const char* str)
 		"E153",
 		"E156B",
 		"E1752",
+		"E261"
 	};
 
 	ast_copy_string (pvt->model, str, sizeof (pvt->model));
@@ -1980,13 +1723,8 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 			ast_debug (5, "[%s] iovcnt == 2\n", PVT_ID(pvt));
 
 			str = alloca(len + 1);
-			if (!str)
-			{
-				ast_debug (1, "[%s] buffer overflow\n", PVT_ID(pvt));
-				return -1;
-			}
-			memcpy (str,                  iov[0].iov_base, iov[0].iov_len);
-			memcpy (str + iov[0].iov_len, iov[1].iov_base, iov[1].iov_len);
+			memcpy(str, iov[0].iov_base, iov[0].iov_len);
+			memcpy(str + iov[0].iov_len, iov[1].iov_base, iov[1].iov_len);
 		}
 		else
 		{
@@ -1996,6 +1734,7 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 
 /*		ast_debug (5, "[%s] [%.*s]\n", PVT_ID(pvt), (int) len, str);
 */
+
 		if(ecmd && ecmd->cmd == CMD_USER) {
 			ast_verb(1, "[%s] Got Response for user's command:'%s'\n", PVT_ID(pvt), str);
 			ast_log(LOG_NOTICE, "[%s] Got Response for user's command:'%s'\n", PVT_ID(pvt), str);
@@ -2012,7 +1751,16 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 				return 0;
 
 			case RES_CMGS:
-				at_response_cmgs(pvt, str);
+				/* Abuse the fact that we know how the manager
+				 * message are formatted: CRLF separated headers
+				 * with colon between key and value */
+				{
+					char buf[64];
+					int res = at_parse_cmgs(str);
+					const at_queue_task_t * task = at_queue_head_task (pvt);
+					snprintf(buf, 64, "Sending\r\nForeignID: %d", res);
+					manager_event_sent_notify(PVT_ID(pvt), "SMS", task, buf);
+				}
 				return 0;
 
 			case RES_OK:
@@ -2065,15 +1813,6 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 			case RES_CLIP:
 				return at_response_clip (pvt, str, len);
 */
-			case RES_CDS:
-				return at_response_cds (pvt, str, len);
-
-			case RES_CDSI:
-				return at_response_cdsi (pvt, str);
-
-			case RES_CMT:
-				return at_response_cmt (pvt, str, len);
-
 			case RES_CMTI:
 				return at_response_cmti (pvt, str);
 

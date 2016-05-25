@@ -3,12 +3,12 @@
 #endif /* HAVE_CONFIG_H */
 
 #ifdef BUILD_MANAGER /* no manager, no copyright */
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
@@ -19,6 +19,8 @@
 #include <asterisk/manager.h>			/* struct mansession, struct message ... */
 #include <asterisk/strings.h>			/* ast_strlen_zero() */
 #include <asterisk/callerid.h>			/* ast_describe_caller_presentation */
+
+#include "ast_compat.h"				/* asterisk compatibility fixes */
 
 #include "manager.h"
 #include "chan_dongle.h"			/* devices */
@@ -118,7 +120,7 @@ static int manager_show_devices (struct mansession* s, const struct message* m)
 	astman_append (s, "Event: DongleShowDevicesComplete\r\n");
 	if(!ast_strlen_zero (id))
 		astman_append (s, "ActionID: %s\r\n", id);
-	astman_append (s, 
+	astman_append (s,
 		"EventList: Complete\r\n"
 		"ListItems: %zu\r\n"
 		"\r\n",
@@ -176,7 +178,7 @@ static int manager_send_sms (struct mansession* s, const struct message* m)
 	const char*	msg;
 	int		status;
 	void * msgid;
-	
+
 	if (ast_strlen_zero (device))
 	{
 		astman_send_error (s, m, "Device not specified");
@@ -218,7 +220,7 @@ static int manager_send_pdu (struct mansession* s, const struct message* m)
 	const char*	msg;
 	int		status;
 	void * msgid;
-	
+
 	if (ast_strlen_zero (device))
 	{
 		astman_send_error (s, m, "Device not specified");
@@ -244,20 +246,6 @@ static int manager_send_pdu (struct mansession* s, const struct message* m)
 
 	return 0;
 }
-
-EXPORT_DEF void manager_event_sms_reference(const char * devname,  const void * id, int reference)
-{
-
-	manager_event (EVENT_FLAG_CALL, "DongleSMSReference",
-		"Device: %s\r\n"
-		"ID: %p\r\n"
-		"Reference: %d\r\n",
-		devname,
-		id,
-		reference
-	);
-}
-
 
 #/* */
 EXPORT_DEF void manager_event_sent_notify(const char * devname, const char * type, const void * id, const char * result)
@@ -356,11 +344,11 @@ static char * espace_newlines(const char * text)
 				escaped[j++] = 'n';
 			} else {
 				escaped[j++] = text[i];
-			}	
+			}
 		}
 		escaped[j] = 0;
 	}
-	
+
 	return escaped;
 }
 
@@ -451,32 +439,13 @@ EXPORT_DEF void manager_event_new_sms (const char * devname, char* number, char*
  * \param message_base64 a null terminated buffer containing the base64 encoded message
  */
 
-EXPORT_DEF void manager_event_new_sms_base64 (const char * devname, char * number, char * message_base64, char *pdu)
+EXPORT_DEF void manager_event_new_sms_base64 (const char * devname, char * number, char * message_base64)
 {
 	manager_event (EVENT_FLAG_CALL, "DongleNewSMSBase64",
 		"Device: %s\r\n"
 		"From: %s\r\n"
-		"Message: %s\r\n"
-		"PDU: %s\r\n",
-		devname, number, message_base64, pdu
-	);
-}
-
-
-/*!
- * \brief Send a DongleNewSMSReceipt event to the manager
- * \param pvt a pvt structure
- * \param number a null terminated buffer containing the from number
- * \param message_base64 a null terminated buffer containing the base64 encoded message
- */
-
-EXPORT_DEF void manager_event_new_sms_receipt (const char * devname, char * number, char *pdu)
-{
-	manager_event (EVENT_FLAG_CALL, "DongleNewSMSReceipt",
-		"Device: %s\r\n"
-		"From: %s\r\n"
-		"PDU: %s\r\n",
-		devname, number, pdu 
+		"Message: %s\r\n",
+		devname, number, message_base64
 	);
 }
 
@@ -638,13 +607,13 @@ static const struct dongle_manager
 	const char*	name;
 	const char*	brief;
 	const char*	desc;
-} dcm[] = 
+} dcm[] =
 {
 	{
-	manager_show_devices, 
+	manager_show_devices,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING,
-	"DongleShowDevices", 
-	"List Dongle devices", 
+	"DongleShowDevices",
+	"List Dongle devices",
 	"Description: Lists Dongle devices in text format with details on current status.\n\n"
 	"DongleShowDevicesComplete.\n"
 	"Variables:\n"
@@ -652,9 +621,9 @@ static const struct dongle_manager
 	"	Device:   <name>	Optional name of device.\n"
 	},
 	{
-	manager_send_ussd, 
+	manager_send_ussd,
 	EVENT_FLAG_CALL,
-	"DongleSendUSSD", 
+	"DongleSendUSSD",
 	"Send a ussd command to the dongle.",
 	"Description: Send a ussd message to a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
@@ -663,10 +632,10 @@ static const struct dongle_manager
 	"	*USSD:    <code>	The ussd code that will be send to the device.\n"
 	 },
 	{
-	manager_send_sms, 
+	manager_send_sms,
 	EVENT_FLAG_CALL,
-	"DongleSendSMS", 
-	"Send a SMS message.", 
+	"DongleSendSMS",
+	"Send a SMS message.",
 	"Description: Send a SMS message from a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -675,10 +644,10 @@ static const struct dongle_manager
 	"	*Message: <message>	The SMS message that will be send.\n"
 	},
 	{
-	manager_send_pdu, 
+	manager_send_pdu,
 	EVENT_FLAG_CALL,
-	"DongleSendPDU", 
-	"Send a PDU of message.", 
+	"DongleSendPDU",
+	"Send a PDU of message.",
 	"Description: Send a PDU of message from a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -686,9 +655,9 @@ static const struct dongle_manager
 	"	*PDU:     <PDU>		The PDU of SMS.\n"
 	},
 	{
-	manager_ccwa_set, 
+	manager_ccwa_set,
 	EVENT_FLAG_CONFIG,
-	"DongleSetCCWA", 
+	"DongleSetCCWA",
 	"Enable/Disabled Call-Waiting on a dongle.",
 	"Description: Enable/Disabled Call-Waiting on a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
@@ -699,8 +668,8 @@ static const struct dongle_manager
 	{
 	manager_reset,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleReset", 
-	"Reset a dongle.", 
+	"DongleReset",
+	"Reset a dongle.",
 	"Description: Reset a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -709,8 +678,8 @@ static const struct dongle_manager
 	{
 	manager_restart,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleRestart", 
-	"Restart a dongle.", 
+	"DongleRestart",
+	"Restart a dongle.",
 	"Description: Restart a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -720,8 +689,8 @@ static const struct dongle_manager
 	{
 	manager_stop,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleStop", 
-	"Stop a dongle.", 
+	"DongleStop",
+	"Stop a dongle.",
 	"Description: Stop a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -731,8 +700,8 @@ static const struct dongle_manager
 	{
 	manager_start,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleStart", 
-	"Start a dongle.", 
+	"DongleStart",
+	"Start a dongle.",
 	"Description: Start a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -741,8 +710,8 @@ static const struct dongle_manager
 	{
 	manager_remove,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleRemove", 
-	"Remove a dongle.", 
+	"DongleRemove",
+	"Remove a dongle.",
 	"Description: Remove a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -752,8 +721,8 @@ static const struct dongle_manager
 	{
 	manager_reload,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleReload", 
-	"Reload a module configuration.", 
+	"DongleReload",
+	"Reload a module configuration.",
 	"Description: Reload the module configuration.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -764,12 +733,20 @@ static const struct dongle_manager
 EXPORT_DEF void manager_register()
 {
 	unsigned i;
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 	struct ast_module* module = self_module();
+#endif /* ^13+ */
 
 	for(i = 0; i < ITEMS_OF(dcm); i++)
 	{
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func,
 			module, dcm[i].brief, dcm[i].desc);
+#elif ASTERISK_VERSION_NUM >= 110000 /* 11+ */
+		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, NULL, dcm[i].brief, dcm[i].desc);
+#else /* 11- */
+		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, dcm[i].brief, dcm[i].desc);
+#endif /* ^11- */
 	}
 }
 

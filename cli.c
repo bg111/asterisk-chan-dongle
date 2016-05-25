@@ -1,9 +1,9 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
@@ -15,7 +15,8 @@
 #include <asterisk.h>
 #include <asterisk/cli.h>			/* struct ast_cli_entry; struct ast_cli_args */
 #include <asterisk/callerid.h>			/* ast_describe_caller_presentation() */
-#include <asterisk/ast_version.h>		/* ASTERISK_VERSION_NUM */
+
+#include "ast_compat.h"				/* asterisk compatibility fixes */
 
 #include "cli.h"
 #include "chan_dongle.h"			/* devices */
@@ -225,7 +226,7 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "  Current device state    : %s\n", dev_state2str(pvt->current_state) );
 		ast_cli (a->fd, "  Desired device state    : %s\n", dev_state2str(pvt->desired_state) );
 		ast_cli (a->fd, "  When change state       : %s\n", restate2str_msg(pvt->restart_time) );
-		
+
 		ast_cli (a->fd, "  Calls/Channels          : %u\n", PVT_STATE(pvt, chansno));
 		ast_cli (a->fd, "    Active                : %u\n", PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]));
 		ast_cli (a->fd, "    Held                  : %u\n", PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]));
@@ -333,10 +334,10 @@ static char* cli_show_device_statistics (struct ast_cli_entry* e, int cmd, struc
 /*
 		ast_cli (a->fd, "  ACD                         : %d\n",
 			getACD(
-				PVT_STAT(pvt, calls_answered[CALL_DIR_OUTGOING]) 
-				+ PVT_STAT(pvt, calls_answered[CALL_DIR_INCOMING]), 
+				PVT_STAT(pvt, calls_answered[CALL_DIR_OUTGOING])
+				+ PVT_STAT(pvt, calls_answered[CALL_DIR_INCOMING]),
 
-				PVT_STAT(pvt, calls_duration[CALL_DIR_OUTGOING]) 
+				PVT_STAT(pvt, calls_duration[CALL_DIR_OUTGOING])
 				+ PVT_STAT(pvt, calls_duration[CALL_DIR_INCOMING])
 				)
 			);
@@ -503,7 +504,7 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		}
 	}
 
-	msg = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, "1", &status, &msgid);
+	msg = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, 0, &status, &msgid);
 	ast_free (buf);
 
 	if(status)
@@ -552,11 +553,11 @@ static char * cli_pdu(struct ast_cli_entry * e, int cmd, struct ast_cli_args * a
 	return CLI_SUCCESS;
 }
 
-#if ASTERISK_VERSION_NUM >= 10800
+#if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 typedef const char * const * ast_cli_complete2_t;
-#else
+#else /* 1.8- */
 typedef char * const * ast_cli_complete2_t;
-#endif
+#endif /* ^1.8- */
 
 static char* cli_ccwa_set (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
@@ -839,7 +840,7 @@ static char * cli_discovery(struct ast_cli_entry * e, int cmd, struct ast_cli_ar
 	const char * imsi;
 	int imeilen;
 	int imsilen;
-	
+
 	switch (cmd) {
 		case CLI_INIT:
 			e->command =	"dongle discovery";
@@ -904,7 +905,7 @@ static char * cli_discovery(struct ast_cli_entry * e, int cmd, struct ast_cli_ar
 	}
 	pdiscovery_list_end();
 	AST_RWLIST_UNLOCK(&gpublic->devices);
-	
+
 	return CLI_SUCCESS;
 }
 
@@ -931,6 +932,10 @@ static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE (cli_start,		"Start dongle"),
 	AST_CLI_DEFINE (cli_discovery,		"Discovery devices and create config"),
 };
+
+#if ASTERISK_VERSION_NUM >= 140000 /* 14+ */
+# define AST_MODULE_SELF self_module()
+#endif /* 14+ */
 
 #/* */
 EXPORT_DEF void cli_register()

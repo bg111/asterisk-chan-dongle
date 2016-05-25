@@ -1,9 +1,9 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
@@ -27,7 +27,7 @@
 static unsigned mark_line(char * line, const char * delimiters, char * pointers[])
 {
 	unsigned found = 0;
-	
+
 	for(; line[0] && delimiters[found]; line++)
 	{
 		if(line[0] == delimiters[found])
@@ -89,7 +89,7 @@ EXPORT_DEF char* at_parse_cops (char* str)
 	 * parse COPS response in the following format:
 	 * +COPS: <mode>[,<format>,<oper>,<?>]
 	 *
-	 * example 
+	 * example
 	 *  +COPS: 0,0,"TELE2",0
 	 */
 
@@ -259,242 +259,20 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
  * \return -1 on error (parse error) or the index of the new sms message
  */
 
-EXPORT_DEF int at_parse_cdsi (const char* str)
-{
-	int index;
-
-	/*
-	 * parse cmti info in the following format:
-	 * +CDSI: <mem>,<index> 
-	 */
-
-	return sscanf (str, "+CDSI: %*[^,],%u", &index) == 1 ? index : -1;
-}
-
-/*!
- * \brief Parse a CMTI notification
- * \param str -- string to parse (null terminated)
- * \param len -- string lenght
- * @note str will be modified when the CMTI message is parsed
- * \return -1 on error (parse error) or the index of the new sms message
- */
-
-EXPORT_DEF int at_parse_cmgs (const char* str)
-{
-	int reference;
-
-	/*
-	 * parse cmti info in the following format:
-	 * +CMTS: <reference> 
-	 */
-
-	return sscanf (str, "+CMGS: %u", &reference) == 1 ? reference : -1;
-}
-
-
-/*!
- * \brief Parse a CMTI notification
- * \param str -- string to parse (null terminated)
- * \param len -- string lenght
- * @note str will be modified when the CMTI message is parsed
- * \return -1 on error (parse error) or the index of the new sms message
- */
-
 EXPORT_DEF int at_parse_cmti (const char* str)
 {
 	int index;
 
 	/*
 	 * parse cmti info in the following format:
-	 * +CMTI: <mem>,<index> 
+	 * +CMTI: <mem>,<index>
 	 */
 
 	return sscanf (str, "+CMTI: %*[^,],%u", &index) == 1 ? index : -1;
 }
 
-static void pdu_copy(char *str, size_t tpdu_length, char *pdu, size_t pdu_length)
-{
-char *ppdu;
-size_t len;
-int sca_length;
 
-while(*str && isspace(*str)) str++;
-
-len=strlen(str);
-
-ppdu=str;
-sca_length=pdu_parse_sca(&ppdu,&len);
-
-len=strlen(str);
-
-//ast_log(LOG_NOTICE,"tpdu_length=%d sca_length=%d  len=%d\n",(int) tpdu_length,(int) sca_length,len);
-
-if (sca_length<0) return;
-
-ppdu=pdu;
-*pdu=0;
-
-len=(tpdu_length*2)+sca_length;
-
-pdu_length--;
-
-while (len--) {
-if (!*str || !pdu_length) { *pdu=0; break; }
-
-*(ppdu++)=*(str++);
-pdu_length--;
-}
-
-*ppdu=0;
-//ast_log(LOG_NOTICE,"pdu=%s\n",pdu);
-
-}
-
-
-static const char* parse_cds_pdu(char** str, attribute_unused size_t len, char* oa, size_t oa_len, str_encoding_t* oa_enc, char *pdu, size_t pdu_len)
-{
-	/*
-	 * parse cds info in the following PDU format
-	 * +CDS: TPDU_length<CR><LF>
-	 * SMSC_number_and_TPDU<CR><LF><CR><LF>
-	 * OK<CR><LF>
-	 *
-	 *	sample
-	 * +CDS: 31
-	 * 07911234567890F3040B911234556780F20008012150220040210C041F04400438043204350442<CR><LF><CR><LF>
-	 * OK<CR><LF>
-	 */
-
-	char delimiters[] = "\n";
-	char * marks[STRLEN(delimiters)];
-	char * end;
-	size_t tpdu_length;
-
-	//ast_log (LOG_NOTICE, "[chan_dongle] recv pdu=%s\n",*str);
-
-	if(mark_line(*str, delimiters, marks) == ITEMS_OF(marks))
-	{
-		tpdu_length = strtol(*str, &end, 10);
-		if(tpdu_length <= 0 || end[0] != '\r')
-			return "Invalid TPDU length in CMGR PDU status line";
-		*str = marks[0] + 1;
-		pdu_copy(*str,tpdu_length,pdu,pdu_len);
-		return pdu_parse(str, tpdu_length, oa, oa_len, oa_enc, NULL, NULL);
-	}
-
-
-	return "Can't parse +CMT response";
-}
-
-/*!
- * \brief Parse a CDS message
- * \param str -- pointer to pointer of string to parse (null terminated)
- * \param len -- string lenght
- * \param number -- a pointer to a char pointer which will store the from number
- * \param pdu --  a pointer to a char buffer which will store the raw pdu
- * \param pdu_len -- size of pdu buffer
- * @note str will be modified when the CMGR message is parsed
- * \retval  0 success
- * \retval -1 parse error
- */
-
-EXPORT_DEF const char * at_parse_cds(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char *pdu, size_t pdu_len)
-{
-	const char* rv = "Can't parse +CMT response line";
-
-	/* skip "+CDS:" */
-	*str += 5;
-	len -= 5;
-
-	/* skip leading spaces */
-	while(len > 0 && str[0][0] == ' ')
-	{
-		(*str)++;
-		len--;
-	}
-
-	if(len > 0)
-	{
-		rv = parse_cds_pdu(str, len, oa, oa_len, oa_enc, pdu, pdu_len);
-	}
-
-	return rv;
-}
-
-
-static const char* parse_cmt_pdu(char** str, attribute_unused size_t len, char* oa, size_t oa_len, str_encoding_t* oa_enc, char** msg, str_encoding_t* msg_enc, char *pdu, size_t pdu_len)
-{
-	/*
-	 * parse cmt info in the following PDU format
-	 * +CMT: TPDU_length<CR><LF>
-	 * SMSC_number_and_TPDU<CR><LF><CR><LF>
-	 * OK<CR><LF>
-	 *
-	 *	sample
-	 * +CMT: ,31
-	 * 07911234567890F3040B911234556780F20008012150220040210C041F04400438043204350442<CR><LF><CR><LF>
-	 * OK<CR><LF>
-	 */
-
-	char delimiters[] = ",\n";
-	char * marks[STRLEN(delimiters)];
-	char * end;
-	size_t tpdu_length;
-
-	//ast_log (LOG_NOTICE, "[chan_dongle] recv pdu=%s\n",*str);
-
-	if(mark_line(*str, delimiters, marks) == ITEMS_OF(marks))
-	{
-		tpdu_length = strtol(marks[0] + 1, &end, 10);
-		if(tpdu_length <= 0 || end[0] != '\r')
-			return "Invalid TPDU length in CMGR PDU status line";
-		*str = marks[1] + 1;
-		pdu_copy(*str,tpdu_length,pdu,pdu_len);
-		return pdu_parse(str, tpdu_length, oa, oa_len, oa_enc, msg, msg_enc);
-	}
-
-
-	return "Can't parse +CMT response";
-}
-
-/*!
- * \brief Parse a CMT message
- * \param str -- pointer to pointer of string to parse (null terminated)
- * \param len -- string lenght
- * \param number -- a pointer to a char pointer which will store the from number
- * \param text -- a pointer to a char pointer which will store the message text
- * \param pdu --  a pointer to a char buffer which will store the raw pdu
- * \param pdu_len -- size of pdu buffer
- * @note str will be modified when the CMGR message is parsed
- * \retval  0 success
- * \retval -1 parse error
- */
-
-EXPORT_DEF const char * at_parse_cmt(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc, char *pdu, size_t pdu_len)
-{
-	const char* rv = "Can't parse +CMT response line";
-
-	/* skip "+CMT:" */
-	*str += 5;
-	len -= 5;
-
-	/* skip leading spaces */
-	while(len > 0 && str[0][0] == ' ')
-	{
-		(*str)++;
-		len--;
-	}
-
-	if(len > 0)
-	{
-		rv = parse_cmt_pdu(str, len, oa, oa_len, oa_enc, msg, msg_enc, pdu, pdu_len);
-	}
-
-	return rv;
-}
-
-
-static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc, char *pdu, size_t pdu_len)
+static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc)
 {
 	/*
 	 * parse cmgr info in the following TEXT format:
@@ -510,8 +288,6 @@ static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t o
 	char delimiters[] = ",,,\n";
 	char * marks[STRLEN(delimiters)];
 	size_t length;
-	
-	if (pdu_len) *pdu=0;
 
 	unsigned count = mark_line(*str, delimiters, marks);
 	if(count == ITEMS_OF(marks))
@@ -540,7 +316,7 @@ static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t o
 	return "Can't parse +CMGR response text";
 }
 
-static const char* parse_cmgr_pdu(char** str, attribute_unused size_t len, char* oa, size_t oa_len, str_encoding_t* oa_enc, char** msg, str_encoding_t* msg_enc, char *pdu, size_t pdu_len)
+static const char* parse_cmgr_pdu(char** str, attribute_unused size_t len, char* oa, size_t oa_len, str_encoding_t* oa_enc, char** msg, str_encoding_t* msg_enc)
 {
 	/*
 	 * parse cmgr info in the following PDU format
@@ -565,7 +341,6 @@ static const char* parse_cmgr_pdu(char** str, attribute_unused size_t len, char*
 		if(tpdu_length <= 0 || end[0] != '\r')
 			return "Invalid TPDU length in CMGR PDU status line";
 		*str = marks[2] + 1;
-		pdu_copy(*str,tpdu_length,pdu,pdu_len);
 		return pdu_parse(str, tpdu_length, oa, oa_len, oa_enc, msg, msg_enc);
 	}
 
@@ -583,7 +358,7 @@ static const char* parse_cmgr_pdu(char** str, attribute_unused size_t len, char*
  * \retval -1 parse error
  */
 
-EXPORT_DEF const char * at_parse_cmgr(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc, char *pdu, size_t pdu_len)
+EXPORT_DEF const char * at_parse_cmgr(char ** str, size_t len, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc)
 {
 	const char* rv = "Can't parse +CMGR response line";
 
@@ -601,13 +376,34 @@ EXPORT_DEF const char * at_parse_cmgr(char ** str, size_t len, char * oa, size_t
 	if(len > 0)
 	{
 		/* check PDU or TEXT mode */
-		const char* (*fptr)(char** str, size_t len, char* num, size_t num_len, str_encoding_t * oa_enc, char** msg, str_encoding_t * msg_enc, char * pdu, size_t pdu_len);
+		const char* (*fptr)(char** str, size_t len, char* num, size_t num_len, str_encoding_t * oa_enc, char** msg, str_encoding_t * msg_enc);
 		fptr = str[0][0] == '"' ? parse_cmgr_text : parse_cmgr_pdu;
 
-		rv = (*fptr)(str, len, oa, oa_len, oa_enc, msg, msg_enc, pdu, pdu_len);
+		rv = (*fptr)(str, len, oa, oa_len, oa_enc, msg, msg_enc);
 	}
 
 	return rv;
+}
+
+/*!
+ * \brief Parse a +CMGS notification
+ * \param str -- string to parse (null terminated)
+ * \return -1 on error (parse error) or the first integer value found
+ * \todo FIXME: parse <mr>[,<scts>] value correctly
+ */
+
+EXPORT_DEF int at_parse_cmgs (const char* str)
+{
+	int cmgs = -1;
+
+	/*
+	 * parse CMGS info in the following format:
+	 * +CMGS:<mr>[,<scts>]
+	 * (sscanf is lax about extra spaces)
+	 * TODO: not ignore parse errors ;)
+	 */
+	sscanf (str, "+CMGS:%d", &cmgs);
+	return cmgs;
 }
 
  /*!
@@ -624,7 +420,7 @@ EXPORT_DEF int at_parse_cusd (char* str, int * type, char** cusd, int * dcs)
 	/*
 	 * parse cusd message in the following format:
 	 * +CUSD: <m>,[<str>,<dcs>]
-	 * 
+	 *
 	 * examples
 	 *   +CUSD: 5
 	 *   +CUSD: 0,"100,00 EURO, valid till 01.01.2010, you are using tariff "Mega Tariff". More informations *111#.",15
@@ -801,17 +597,12 @@ EXPORT_DEF int at_parse_clcc(char* str, unsigned * call_idx, unsigned * dir, uns
 
 	if(mark_line(str, delimiters, marks) == ITEMS_OF(marks))
 	{
-		if( sscanf(marks[0] + 1, "%u", call_idx) == 1
-			&&
-		    sscanf(marks[1] + 1, "%u", dir) == 1
-			&&
-		    sscanf(marks[2] + 1, "%u", state) == 1
-			&&
-		    sscanf(marks[3] + 1, "%u", mode) == 1
-			&&
-		    sscanf(marks[4] + 1, "%u", mpty) == 1
-			&&
-		    sscanf(marks[6] + 1, "%u", toa) == 1) 
+		if(sscanf(marks[0] + 1, "%u", call_idx) == 1
+			&& sscanf(marks[1] + 1, "%u", dir) == 1
+			&& sscanf(marks[2] + 1, "%u", state) == 1
+			&& sscanf(marks[3] + 1, "%u", mode) == 1
+			&& sscanf(marks[4] + 1, "%u", mpty) == 1
+			&& sscanf(marks[6] + 1, "%u", toa) == 1)
 		{
 			marks[5]++;
 			if(marks[5][0] == '"')
@@ -831,7 +622,7 @@ EXPORT_DEF int at_parse_clcc(char* str, unsigned * call_idx, unsigned * dir, uns
 #/* */
 EXPORT_DEF int at_parse_ccwa(char* str, unsigned * class)
 {
-	/* 
+	/*
 	 * CCWA may be in form:
 	 *	in response of AT+CCWA=?
 	 *		+CCWA: (0,1)

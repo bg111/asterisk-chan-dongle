@@ -12,7 +12,7 @@ struct ringbuffer;
 struct iovec;
 
 EXPORT_DECL int at_wait (int fd, int* ms);
-EXPORT_DECL ssize_t at_read (struct pvt * pvt, int fd, const char * dev, struct ringbuffer* rb);
+EXPORT_DECL ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb);
 EXPORT_DECL int at_read_result_iov (const char * dev, int * read_result, struct ringbuffer* rb, struct iovec * iov);
 EXPORT_DECL at_res_t at_read_result_classification (struct ringbuffer * rb, size_t len);
 

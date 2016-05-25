@@ -1,9 +1,9 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 */
 #ifdef HAVE_CONFIG_H
@@ -35,7 +35,7 @@ EXPORT_DEF int rb_memcmp (const struct ringbuffer* rb, const char* mem, size_t l
 				}
 			}
 		}
-		else 
+		else
 		{
 			if (memcmp (rb->buffer + rb->read, mem, len) == 0)
 			{
@@ -119,7 +119,7 @@ EXPORT_DEF int rb_read_until_char_iov (const struct ringbuffer* rb, struct iovec
 				iov[1].iov_len = 0;
 				return 1;
 			}
-		
+
 			if ((p = memchr (rb->buffer, c, rb->used - iov[0].iov_len)) != NULL)
 			{
 				iov[1].iov_base = rb->buffer;
@@ -127,7 +127,7 @@ EXPORT_DEF int rb_read_until_char_iov (const struct ringbuffer* rb, struct iovec
 				return 2;
 			}
 		}
-		else 
+		else
 		{
 			iov[0].iov_base = rb->buffer + rb->read;
 			iov[0].iov_len  = rb->used;
@@ -205,108 +205,16 @@ EXPORT_DEF int rb_read_until_mem_iov (const struct ringbuffer* rb, struct iovec 
 						iov[1].iov_len = 0;
 						return 1;
 					}
-				
+
 					iov[1].iov_base = rb->buffer;
 					iov[1].iov_len = p - rb->buffer;
 					return 2;
 				}
 			}
 		}
-		else 
+		else
 		{
 			iov[0].iov_base = rb->buffer + rb->read;
-			iov[0].iov_len  = rb->used;
-			if ((p = memmem (iov[0].iov_base, iov[0].iov_len, mem, len)) != NULL)
-			{
-				iov[0].iov_len = p - iov[0].iov_base;
-				iov[1].iov_len = 0;
-
-				return 1;
-			}
-		}
-	}
-
-	return 0;
-}
-
-
-EXPORT_DEF int rb_read_until_mem_iov_with_skip (const struct ringbuffer* rb, struct iovec iov[2], const void* mem, size_t len,size_t skip)
-{
-	size_t	i;
-	void*	p;
-        size_t  read = rb->read + skip;
-
-	if (len == 1)
-		return 0;
-        
-        if (skip > rb->used)
-		return 0;
-
-        if (read > rb->size) 
-		read -= rb->size;
-
-	if (rb->used > 0 && len > 0 && rb->used >= len)
-	{
-		if ((read + rb->used) > rb->size)
-		{
-			iov[0].iov_base = rb->buffer + read;
-			iov[0].iov_len  = rb->size - read;
-			if (iov[0].iov_len >= len)
-			{
-				if ((p = memmem (iov[0].iov_base, iov[0].iov_len, mem, len)) != NULL)
-				{
-					iov[0].iov_len = p - iov[0].iov_base;
-					iov[1].iov_len = 0;
-					return 1;
-				}
-
-				i = 1;
-				iov[1].iov_base = iov[0].iov_base + iov[0].iov_len - len + 1;
-			}
-			else
-			{
-				i = len - iov[0].iov_len;
-				iov[1].iov_base = iov[0].iov_base;
-			}
-
-
-			while (i < len)
-			{
-				if (memcmp (iov[1].iov_base, mem, len - i) == 0 && memcmp (rb->buffer, mem + i, i) == 0)
-				{
-					iov[0].iov_len = iov[1].iov_base - iov[0].iov_base;
-					iov[1].iov_len = 0;
-					return 1;
-				}
-
-				if (rb->used == iov[0].iov_len + i)
-				{
-					return 0;
-				}
-
-				iov[1].iov_base++;
-				i++;
-			}
-
-			if (rb->used >= iov[0].iov_len + len)
-			{
-				if ((p = memmem (rb->buffer, rb->used - iov[0].iov_len, mem, len)) != NULL)
-				{
-					if (p == rb->buffer)
-					{
-						iov[1].iov_len = 0;
-						return 1;
-					}
-				
-					iov[1].iov_base = rb->buffer;
-					iov[1].iov_len = p - rb->buffer;
-					return 2;
-				}
-			}
-		}
-		else 
-		{
-			iov[0].iov_base = rb->buffer + read;
 			iov[0].iov_len  = rb->used;
 			if ((p = memmem (iov[0].iov_base, iov[0].iov_len, mem, len)) != NULL)
 			{
