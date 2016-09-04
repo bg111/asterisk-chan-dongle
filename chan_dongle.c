@@ -1784,7 +1784,7 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, MODULE_DESCRIPTION,
 
 //AST_MODULE_INFO_STANDARD (ASTERISK_GPL_KEY, MODULE_DESCRIPTION);
 
-EXPORT_DEF struct ast_module* self_module()
+EXPORT_DEF struct ast_module* self_module(void)
 {
 	return ast_module_info->self;
 }
