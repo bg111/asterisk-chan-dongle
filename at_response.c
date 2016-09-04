@@ -1151,34 +1151,33 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 // FIXME: check format in PDU mode
 	int index = at_parse_cmti (str);
 
+	if (CONF_SHARED(pvt, disablesms))
+	{
+		ast_log (LOG_WARNING, "[%s] SMS reception has been disabled in the configuration.\n", PVT_ID(pvt));
+		return 0;
+	}
+
 	if (index > -1)
 	{
 		ast_debug (1, "[%s] Incoming SMS message\n", PVT_ID(pvt));
 
-		if (CONF_SHARED(pvt, disablesms))
-		{
-			ast_log (LOG_WARNING, "[%s] SMS reception has been disabled in the configuration.\n", PVT_ID(pvt));
-		}
-		else if(pvt_enabled(pvt))
+		if (pvt_enabled(pvt))
 		{
 			if (at_enque_retrive_sms (&pvt->sys_chan, index, CONF_SHARED(pvt, autodeletesms)))
 			{
 				ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
 				return -1;
 			}
-			else
-			{
-				pvt->incoming_sms = 1;
-			}
+			pvt->incoming_sms = 1;
 		}
-
-		return 0;
 	}
 	else
 	{
 		ast_log (LOG_ERROR, "[%s] Error parsing incoming sms message alert '%s', disconnecting\n", PVT_ID(pvt), str);
 		return -1;
 	}
+
+	return 0;
 }
 
 /*!
