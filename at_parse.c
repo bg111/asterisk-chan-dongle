@@ -1,9 +1,9 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
@@ -27,7 +27,7 @@
 static unsigned mark_line(char * line, const char * delimiters, char * pointers[])
 {
 	unsigned found = 0;
-	
+
 	for(; line[0] && delimiters[found]; line++)
 	{
 		if(line[0] == delimiters[found])
@@ -89,7 +89,7 @@ EXPORT_DEF char* at_parse_cops (char* str)
 	 * parse COPS response in the following format:
 	 * +COPS: <mode>[,<format>,<oper>,<?>]
 	 *
-	 * example 
+	 * example
 	 *  +COPS: 0,0,"TELE2",0
 	 */
 
@@ -265,7 +265,7 @@ EXPORT_DEF int at_parse_cmti (const char* str)
 
 	/*
 	 * parse cmti info in the following format:
-	 * +CMTI: <mem>,<index> 
+	 * +CMTI: <mem>,<index>
 	 */
 
 	return sscanf (str, "+CMTI: %*[^,],%u", &index) == 1 ? index : -1;
@@ -288,7 +288,7 @@ static const char * parse_cmgr_text(char ** str, size_t len, char * oa, size_t o
 	char delimiters[] = ",,,\n";
 	char * marks[STRLEN(delimiters)];
 	size_t length;
-	
+
 	unsigned count = mark_line(*str, delimiters, marks);
 	if(count == ITEMS_OF(marks))
 	{
@@ -385,6 +385,27 @@ EXPORT_DEF const char * at_parse_cmgr(char ** str, size_t len, char * oa, size_t
 	return rv;
 }
 
+/*!
+ * \brief Parse a +CMGS notification
+ * \param str -- string to parse (null terminated)
+ * \return -1 on error (parse error) or the first integer value found
+ * \todo FIXME: parse <mr>[,<scts>] value correctly
+ */
+
+EXPORT_DEF int at_parse_cmgs (const char* str)
+{
+	int cmgs = -1;
+
+	/*
+	 * parse CMGS info in the following format:
+	 * +CMGS:<mr>[,<scts>]
+	 * (sscanf is lax about extra spaces)
+	 * TODO: not ignore parse errors ;)
+	 */
+	sscanf (str, "+CMGS:%d", &cmgs);
+	return cmgs;
+}
+
  /*!
  * \brief Parse a CUSD answer
  * \param str -- string to parse (null terminated)
@@ -399,7 +420,7 @@ EXPORT_DEF int at_parse_cusd (char* str, int * type, char** cusd, int * dcs)
 	/*
 	 * parse cusd message in the following format:
 	 * +CUSD: <m>,[<str>,<dcs>]
-	 * 
+	 *
 	 * examples
 	 *   +CUSD: 5
 	 *   +CUSD: 0,"100,00 EURO, valid till 01.01.2010, you are using tariff "Mega Tariff". More informations *111#.",15
@@ -576,17 +597,12 @@ EXPORT_DEF int at_parse_clcc(char* str, unsigned * call_idx, unsigned * dir, uns
 
 	if(mark_line(str, delimiters, marks) == ITEMS_OF(marks))
 	{
-		if( sscanf(marks[0] + 1, "%u", call_idx) == 1
-			&&
-		    sscanf(marks[1] + 1, "%u", dir) == 1
-			&&
-		    sscanf(marks[2] + 1, "%u", state) == 1
-			&&
-		    sscanf(marks[3] + 1, "%u", mode) == 1
-			&&
-		    sscanf(marks[4] + 1, "%u", mpty) == 1
-			&&
-		    sscanf(marks[6] + 1, "%u", toa) == 1) 
+		if(sscanf(marks[0] + 1, "%u", call_idx) == 1
+			&& sscanf(marks[1] + 1, "%u", dir) == 1
+			&& sscanf(marks[2] + 1, "%u", state) == 1
+			&& sscanf(marks[3] + 1, "%u", mode) == 1
+			&& sscanf(marks[4] + 1, "%u", mpty) == 1
+			&& sscanf(marks[6] + 1, "%u", toa) == 1)
 		{
 			marks[5]++;
 			if(marks[5][0] == '"')
@@ -606,7 +622,7 @@ EXPORT_DEF int at_parse_clcc(char* str, unsigned * call_idx, unsigned * dir, uns
 #/* */
 EXPORT_DEF int at_parse_ccwa(char* str, unsigned * class)
 {
-	/* 
+	/*
 	 * CCWA may be in form:
 	 *	in response of AT+CCWA=?
 	 *		+CCWA: (0,1)

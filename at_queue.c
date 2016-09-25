@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
 
    Artem Makhutov <artem@makhutov.org>
@@ -28,7 +28,7 @@ static void at_queue_free_data(at_queue_cmd_t * cmd)
 {
 	if(cmd->data)
 	{
-		if((cmd->flags & ATQ_CMD_FLAG_STATIC) == 0) 
+		if((cmd->flags & ATQ_CMD_FLAG_STATIC) == 0)
 		{
 			ast_free (cmd->data);
 			cmd->data = NULL;
@@ -67,8 +67,8 @@ static void at_queue_remove (struct pvt * pvt)
 	{
 		PVT_STATE(pvt, at_tasks)--;
 		PVT_STATE(pvt, at_cmds) -= task->cmdsno - task->cindex;
-		ast_debug (4, "[%s] remove task with %u command(s) begin with '%s' expected response '%s' from queue\n", 
-				PVT_ID(pvt), task->cmdsno, at_cmd2str (task->cmds[0].cmd), 
+		ast_debug (4, "[%s] remove task with %u command(s) begin with '%s' expected response '%s' from queue\n",
+				PVT_ID(pvt), task->cmdsno, at_cmd2str (task->cmds[0].cmd),
 				at_res2str (task->cmds[0].res));
 
 		at_queue_free(task);
@@ -124,8 +124,8 @@ static at_queue_task_t * at_queue_add (struct cpvt * cpvt, const at_queue_cmd_t 
 			PVT_STAT(pvt, at_tasks) ++;
 			PVT_STAT(pvt, at_cmds) += cmdsno;
 
-			ast_debug (4, "[%s] insert task with %u commands begin with '%s' expected response '%s' %s of queue\n", 
-					PVT_ID(pvt), e->cmdsno, at_cmd2str (e->cmds[0].cmd), 
+			ast_debug (4, "[%s] insert task with %u commands begin with '%s' expected response '%s' %s of queue\n",
+					PVT_ID(pvt), e->cmdsno, at_cmd2str (e->cmds[0].cmd),
 					at_res2str (e->cmds[0].res), prio ? "after head" : "at tail");
 		}
 	}
@@ -218,9 +218,9 @@ EXPORT_DEF void at_queue_remove_cmd (struct pvt* pvt, at_res_t res)
 
 		task->cindex++;
 		PVT_STATE(pvt, at_cmds)--;
-		ast_debug (4, "[%s] remove command '%s' expected response '%s' real '%s' cmd %u/%u flags 0x%02x from queue\n", 
-				PVT_ID(pvt), at_cmd2str (task->cmds[index].cmd), 
-				at_res2str (task->cmds[index].res), at_res2str (res), 
+		ast_debug (4, "[%s] remove command '%s' expected response '%s' real '%s' cmd %u/%u flags 0x%02x from queue\n",
+				PVT_ID(pvt), at_cmd2str (task->cmds[index].cmd),
+				at_res2str (task->cmds[index].res), at_res2str (res),
 				task->cindex, task->cmdsno, task->cmds[index].flags);
 
 		if((task->cindex >= task->cmdsno) || (task->cmds[index].res != res && (task->cmds[index].flags & ATQ_CMD_FLAG_IGNORE) == 0))
@@ -245,7 +245,7 @@ EXPORT_DEF int at_queue_run (struct pvt * pvt)
 	{
 		if(cmd->length > 0)
 		{
-			ast_debug (4, "[%s] write command '%s' expected response '%s' length %u\n", 
+			ast_debug (4, "[%s] write command '%s' expected response '%s' length %u\n",
 					PVT_ID(pvt), at_cmd2str (cmd->cmd), at_res2str (cmd->res), cmd->length);
 
 			fail = at_write(pvt, cmd->data, cmd->length);

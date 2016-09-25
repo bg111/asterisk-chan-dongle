@@ -47,7 +47,7 @@ static inline size_t mixb_mix_write(struct mixbuffer * mb, struct mixstream * st
 	/* save global state */
 	size_t save_write = mb->rb.write;
 	size_t save_used = mb->rb.used;
-	
+
 	/* load local state */
 	mb->rb.write = stream->write;
 	mb->rb.used = stream->used;
