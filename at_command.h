@@ -148,6 +148,7 @@ struct cpvt;
 
 EXPORT_DECL const char* at_cmd2str (at_cmd_t cmd);
 EXPORT_DECL int at_enque_initialization(struct cpvt * cpvt, at_cmd_t from_command);
+EXPORT_DECL int set_cpms_sm ();
 EXPORT_DECL int at_enque_ping (struct cpvt * cpvt);
 EXPORT_DECL int at_enque_cops (struct cpvt * cpvt);
 EXPORT_DECL int at_enque_sms (struct cpvt * cpvt, const char * number, const char * msg, unsigned validity_min, int report_req, void ** id);
