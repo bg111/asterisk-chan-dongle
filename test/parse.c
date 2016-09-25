@@ -9,6 +9,27 @@
 int ok = 0;
 int faults = 0;
 
+int test_strcmp(const char *pa, const char *pb)
+{
+	int retval;
+
+	if (pa == NULL)
+		pa = "";
+	if (pb == NULL)
+		pb = "";
+	retval = strcmp(pa,pb);
+
+	if (retval != 0) {
+		int x = 0;
+		while (pa[x] == pb[x] && pa[x] != 0) {
+			x++;
+		}
+		printf("String '%s' and '%s' differs at "
+		    "offset %d '%c' != '%c'\n", pa, pb, x, pa[x], pb[x]);
+	}
+	return (retval);
+}
+
 #/* */
 void test_parse_cnum()
 {
@@ -34,7 +55,7 @@ void test_parse_cnum()
 		input = strdup(cases[idx].input);
 		fprintf(stderr, "%s(\"%s\")...", "at_parse_cnum", input);
 		res = at_parse_cnum(input);
-		if(strcmp(res, cases[idx].result) == 0) {
+		if(test_strcmp(res, cases[idx].result) == 0) {
 			msg = "OK";
 			ok++;
 		} else {
@@ -67,7 +88,7 @@ void test_parse_cops()
 		input = strdup(cases[idx].input);
 		fprintf(stderr, "%s(\"%s\")...", "at_parse_cops", input);
 		res = at_parse_cops(input);
-		if(strcmp(res, cases[idx].result) == 0) {
+		if(test_strcmp(res, cases[idx].result) == 0) {
 			msg = "OK";
 			ok++;
 		} else {
@@ -112,9 +133,9 @@ void test_parse_creg()
 			&&
 		   result.gsm_reg_status == cases[idx].result.gsm_reg_status
 			&&
-		   strcmp(result.lac, cases[idx].result.lac) == 0
+		   test_strcmp(result.lac, cases[idx].result.lac) == 0
 			&&
-		   strcmp(result.ci, cases[idx].result.ci) == 0
+		   test_strcmp(result.ci, cases[idx].result.ci) == 0
 			) {
 			msg = "OK";
 			ok++;
@@ -203,7 +224,7 @@ void test_parse_cmgr()
 				"+11111111112",
 				STR_ENCODING_7BIT,
 				"B1582C168BC562B1984C2693C96432994C369BCD66B3D96C369BD168341A8D46A3D168B55AAD56ABD56AB59ACD66B3D96C369BCD76BBDD6EB7DBED76BBE170381C0E87C3E170B95C2E97CBE572B91C0C0683C16030180C",
-				STR_ENCODING_7BIT_HEX
+				STR_ENCODING_7BIT_HEX_PAD_0
 			} 
 		},
 		{ "+CMGR: 0,,159\r\n07919740430900F3440B912222222220F20008012180004390218C0500030003010031003100310031003100310031003100310031003200320032003200320032003200320032003200330033003300330033003300330033003300330034003400340034003400340034003400340034003500350035003500350035003500350035003500360036003600360036003600360036003600360037003700370037003700370037",
@@ -216,13 +237,34 @@ void test_parse_cmgr()
 				STR_ENCODING_UCS2_HEX
 			} 
 		},
-
+		{ "+CMGR: 0,,158\r\n07916407970970F6400A912222222222000041903021825180A0050003000301A9E5391D14060941439015240409414290102404094142901024040941429010240409414290106405594142901564055941429012A40429AD4AABD22A7481AC56101264455A915624C80AB282AC20A1D06A0559415610D20A4282AC2024C80AB282AC202BC80AB282AC2E9012B4042D414A90D2055282942E90D20502819420254809528294",
+			{
+				NULL,
+				"A9E5391D14060941439015240409414290102404094142901024040941429010240409414290106405594142901564055941429012A40429AD4AABD22A7481AC56101264455A915624C80AB282AC20A1D06A0559415610D20A4282AC2024C80AB282AC202BC80AB282AC2E9012B4042D414A90D2055282942E90D20502819420254809528294",
+				"+2222222222",
+				STR_ENCODING_7BIT,
+				"A9E5391D14060941439015240409414290102404094142901024040941429010240409414290106405594142901564055941429012A40429AD4AABD22A7481AC56101264455A915624C80AB282AC20A1D06A0559415610D20A4282AC2024C80AB282AC202BC80AB282AC2E9012B4042D414A90D2055282942E90D20502819420254809528294",
+				STR_ENCODING_7BIT_HEX_PAD_1,
+			}
+		},
+		{ "+CMGR: 0,,55\r\n07912933035011804409D055F3DB5D060000411120712071022A080701030003990202A09976D7E9E5390B640FB3D364103DCD668364B3562CD692C1623417",
+			{
+				NULL,
+				"A09976D7E9E5390B640FB3D364103DCD668364B3562CD692C1623417",
+				"553",
+				STR_ENCODING_7BIT,
+				"A09976D7E9E5390B640FB3D364103DCD668364B3562CD692C1623417",
+				STR_ENCODING_7BIT_HEX_PAD_5,
+			}
+		},
 	};
 
 	unsigned idx = 0;
 	char * input;
 	struct result result;
 	char oa[200];
+	char buffer_res[256];
+	char buffer_dec[256];
 	const char * msg;
 
 	result.oa = oa;
@@ -230,15 +272,15 @@ void test_parse_cmgr()
 		result.str = input = strdup(cases[idx].input);
 		fprintf(stderr, "%s(\"%s\")...", "at_parse_cmgr", input);
 		result.res = at_parse_cmgr(&result.str, strlen(result.str), result.oa, sizeof(oa), &result.oa_enc, &result.msg, &result.msg_enc);
-		if( ((result.res == NULL && result.res == cases[idx].result.res) || strcmp(result.res, cases[idx].result.res) == 0)
+		if( ((result.res == NULL && result.res == cases[idx].result.res) || test_strcmp(result.res, cases[idx].result.res) == 0)
 			&&
-		   strcmp(result.str, cases[idx].result.str) == 0
+		   test_strcmp(result.str, cases[idx].result.str) == 0
 			&&
-		   strcmp(result.oa, cases[idx].result.oa) == 0
+		   test_strcmp(result.oa, cases[idx].result.oa) == 0
 			&&
 		   result.oa_enc == cases[idx].result.oa_enc
 			&&
-		   strcmp(result.msg, cases[idx].result.msg) == 0
+		   test_strcmp(result.msg, cases[idx].result.msg) == 0
 			&&
 		   result.msg_enc == cases[idx].result.msg_enc
 			) {
@@ -248,7 +290,11 @@ void test_parse_cmgr()
 			msg = "FAIL";
 			faults++;
 		}
-		fprintf(stderr, " = '%s' ('%s','%s',%d,'%s',%d)\t%s\n", result.res, result.str, result.oa, result.oa_enc, result.msg, result.msg_enc, msg);
+		memset(buffer_res, 0, sizeof(buffer_res));
+		memset(buffer_dec, 0, sizeof(buffer_dec));
+		str_recode(RECODE_DECODE, result.msg_enc, result.msg, strlen(result.msg), buffer_res, sizeof(buffer_res));
+		str_recode(RECODE_DECODE, cases[idx].result.msg_enc, cases[idx].result.msg, strlen(cases[idx].result.msg), buffer_dec, sizeof(buffer_dec));
+		fprintf(stderr, " = '%s' ('%s','%s',%d,'%s',%d,'%s','%s')\t%s\n", result.res, result.str, result.oa, result.oa_enc, result.msg, result.msg_enc, buffer_res, buffer_dec, msg);
 		free(input);
 	}
 	fprintf(stderr, "\n");
@@ -286,7 +332,7 @@ void test_parse_cusd()
 			&&
 		   result.dcs == cases[idx].result.dcs
 			&&
-		   strcmp(result.cusd, cases[idx].result.cusd) == 0
+		   test_strcmp(result.cusd, cases[idx].result.cusd) == 0
 			) {
 			msg = "OK";
 			ok++;
@@ -369,7 +415,7 @@ void test_parse_clcc()
 			&&
 		   result.mpty == cases[idx].result.mpty
 			&&
-		   strcmp(result.number, cases[idx].result.number) == 0
+		   test_strcmp(result.number, cases[idx].result.number) == 0
 			&&
 		   result.toa == cases[idx].result.toa
 			) {

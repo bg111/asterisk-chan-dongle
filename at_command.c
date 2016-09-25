@@ -418,7 +418,7 @@ EXPORT_DEF int at_enque_ussd (struct cpvt * cpvt, const char * code, attribute_u
 	length = STRLEN(cmd);
 
 	if (pvt->cusd_use_7bit_encoding)
-		cusd_encoding = STR_ENCODING_7BIT_HEX;
+		cusd_encoding = STR_ENCODING_7BIT_HEX_PAD_0;
 	else if (pvt->use_ucs2_encoding)
 		cusd_encoding = STR_ENCODING_UCS2_HEX;
 	else
