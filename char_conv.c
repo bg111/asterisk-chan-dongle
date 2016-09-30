@@ -133,7 +133,10 @@ static ssize_t hexstr_ucs2_to_utf8 (const char* in, size_t in_length, char* out,
 		return res;
 	}
 
-	res = convert_string (buf, res, out, out_size, "UCS-2BE", "UTF-8");
+	/* Since UTF-16BE is a superset of UCS-2BE -- using unused code
+	 * points from UCS-2 -- we can safely assume that UTF-16BE works
+	 * here. */
+	res = convert_string (buf, res, out, out_size, "UTF-16BE", "UTF-8");
 
 	return res;
 }
@@ -148,7 +151,10 @@ static ssize_t utf8_to_hexstr_ucs2 (const char* in, size_t in_length, char* out,
 		return -1;
 	}
 
-	res = convert_string (in, in_length, buf, out_size, "UTF-8", "UCS-2BE");
+	/* Since UTF-16BE is a superset of UCS-2BE -- using unused code
+	 * points from UCS-2 -- we can safely assume that UTF-16BE works
+	 * here. */
+	res = convert_string (in, in_length, buf, out_size, "UTF-8", "UTF-16BE");
 	if (res < 0)
 	{
 		return res;
