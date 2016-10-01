@@ -181,9 +181,36 @@
 		  ...
 */
 
-#define NUMBER_TYPE_INTERNATIONAL		0x91
-#define NUMBER_TYPE_NATIONAL			0xC8
-#define NUMBER_TYPE_ALPHANUMERIC		0xD0
+/* Address octets: 0=length_in_nibbles, 1=EXT/TON/NPI, 2..11=address
+ * (destination address (TP-DA), originator address (TP-OA) and recipient address (TP-RA))
+ * EXT: bit7: 1 "no extension"
+ * TON: bit6..4: see below
+ * NPI: bit3..0: see below
+ * Source: https://en.wikipedia.org/wiki/GSM_03.40 */
+#define TP_A_EXT		(1 << 7)
+#define TP_A_EXT_NOEXT		(1 << 7)
+#define TP_A_TON		(7 << 4)
+#define TP_A_TON_UNKNOWN	(0 << 4)
+#define TP_A_TON_INTERNATIONAL	(1 << 4)
+#define TP_A_TON_NATIONAL	(2 << 4)
+#define TP_A_TON_NETSPECIFIC	(3 << 4)
+#define TP_A_TON_SUBSCRIBERNUM	(4 << 4)
+#define TP_A_TON_ALPHANUMERIC	(5 << 4)
+#define TP_A_TON_ABBREVIATEDNUM	(6 << 4)
+#define TP_A_TON_RESERVED	(7 << 4)
+#define TP_A_NPI		(15 << 0)
+#define TP_A_NPI_UNKNOWN	(0 << 0)
+#define TP_A_NPI_TEL_E164_E163	(1 << 0)
+#define TP_A_NPI_TELEX		(3 << 0)
+#define TP_A_NPI_SVCCENTR_SPEC1	(4 << 0)
+#define TP_A_NPI_SVCCENTR_SPEC2	(5 << 0)
+#define TP_A_NPI_NATIONALNUM	(8 << 0)
+#define TP_A_NPI_PRIVATENUM	(9 << 0)
+#define TP_A_NPI_ERMESNUM	(10 << 0)
+#define TP_A_NPI_RESERVED	(15 << 0)
+#define NUMBER_TYPE_INTERNATIONAL	(TP_A_EXT_NOEXT | TP_A_TON_INTERNATIONAL | TP_A_NPI_TEL_E164_E163) /* 0x91 */
+#define NUMBER_TYPE_NATIONAL		(TP_A_EXT_NOEXT | TP_A_TON_SUBSCRIBERNUM | TP_A_NPI_NATIONALNUM) /* 0xC8 */
+#define NUMBER_TYPE_ALPHANUMERIC	(TP_A_EXT_NOEXT | TP_A_TON_ALPHANUMERIC | TP_A_NPI_UNKNOWN) /* 0xD0 */
 
 /* Message Type Indicator Parameter */
 #define PDUTYPE_MTI_SHIFT			0
