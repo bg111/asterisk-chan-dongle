@@ -900,6 +900,7 @@ static int channel_write (struct ast_channel* channel, struct ast_frame* f)
 			}
 		}
 
+		ast_frame_byteswap_le(f);
 
 		if (pvt->a_timer)
 		{

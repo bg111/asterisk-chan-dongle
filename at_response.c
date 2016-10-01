@@ -77,7 +77,7 @@ static const at_response_t at_responses_list[] = {
 
 	{ RES_CVOICE,"^CVOICE",DEF_STR("^CVOICE:") },
 	{ RES_CMGS,"+CMGS",DEF_STR("+CMGS:") },
-	{ RES_CMGS,"+CPMS",DEF_STR("+CPMS:") },
+	{ RES_CPMS,"+CPMS",DEF_STR("+CPMS:") },
 	{ RES_CSCA,"+CSCA",DEF_STR("+CSCA:") },
 
 	{ RES_CLCC,"+CLCC", DEF_STR("+CLCC:") },
