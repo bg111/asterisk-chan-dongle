@@ -181,9 +181,36 @@
 		  ...
 */
 
-#define NUMBER_TYPE_INTERNATIONAL		0x91
-#define NUMBER_TYPE_NATIONAL			0xC8
-#define NUMBER_TYPE_ALPHANUMERIC		0xD0
+/* Address octets: 0=length_in_nibbles, 1=EXT/TON/NPI, 2..11=address
+ * (destination address (TP-DA), originator address (TP-OA) and recipient address (TP-RA))
+ * EXT: bit7: 1 "no extension"
+ * TON: bit6..4: see below
+ * NPI: bit3..0: see below
+ * Source: https://en.wikipedia.org/wiki/GSM_03.40 */
+#define TP_A_EXT		(1 << 7)
+#define TP_A_EXT_NOEXT		(1 << 7)
+#define TP_A_TON		(7 << 4)
+#define TP_A_TON_UNKNOWN	(0 << 4)
+#define TP_A_TON_INTERNATIONAL	(1 << 4)
+#define TP_A_TON_NATIONAL	(2 << 4)
+#define TP_A_TON_NETSPECIFIC	(3 << 4)
+#define TP_A_TON_SUBSCRIBERNUM	(4 << 4)
+#define TP_A_TON_ALPHANUMERIC	(5 << 4)
+#define TP_A_TON_ABBREVIATEDNUM	(6 << 4)
+#define TP_A_TON_RESERVED	(7 << 4)
+#define TP_A_NPI		(15 << 0)
+#define TP_A_NPI_UNKNOWN	(0 << 0)
+#define TP_A_NPI_TEL_E164_E163	(1 << 0)
+#define TP_A_NPI_TELEX		(3 << 0)
+#define TP_A_NPI_SVCCENTR_SPEC1	(4 << 0)
+#define TP_A_NPI_SVCCENTR_SPEC2	(5 << 0)
+#define TP_A_NPI_NATIONALNUM	(8 << 0)
+#define TP_A_NPI_PRIVATENUM	(9 << 0)
+#define TP_A_NPI_ERMESNUM	(10 << 0)
+#define TP_A_NPI_RESERVED	(15 << 0)
+#define NUMBER_TYPE_INTERNATIONAL	(TP_A_EXT_NOEXT | TP_A_TON_INTERNATIONAL | TP_A_NPI_TEL_E164_E163) /* 0x91 */
+#define NUMBER_TYPE_NATIONAL		(TP_A_EXT_NOEXT | TP_A_TON_SUBSCRIBERNUM | TP_A_NPI_NATIONALNUM) /* 0xC8 */
+#define NUMBER_TYPE_ALPHANUMERIC	(TP_A_EXT_NOEXT | TP_A_TON_ALPHANUMERIC | TP_A_NPI_UNKNOWN) /* 0xD0 */
 
 /* Message Type Indicator Parameter */
 #define PDUTYPE_MTI_SHIFT			0
@@ -450,36 +477,38 @@ static int pdu_parse_number(char ** pdu, size_t * pdu_length, unsigned digits, i
 
 	begin = *pdu;
 	*toa = pdu_parse_byte(pdu, pdu_length);
-	if(*toa >= 0)
+	if (*toa >= 0)
 	{
 		unsigned syms = ROUND_UP2(digits);
-		if(syms <= *pdu_length)
+		if (syms <= *pdu_length)
 		{
 			char digit;
-			if(*toa == NUMBER_TYPE_INTERNATIONAL)
+			if ((*toa & TP_A_TON) == TP_A_TON_ALPHANUMERIC)
 			{
-				*number++ = '+';
-			}
-			else if(*toa == NUMBER_TYPE_ALPHANUMERIC)
-			{
+				/* NPI should be TP_A_NPI_UNKNOWN but has also been
+				 * seen as TP_A_NPI_TEL_E164_E163 */
 				for(; syms > 0; syms--, *pdu += 1, *pdu_length -= 1)
 					*number++ = pdu[0][0];
 				return *pdu - begin;
 			}
-			for(; syms > 0; syms -= 2, *pdu += 2, *pdu_length -= 2)
+			if ((*toa & TP_A_TON) == TP_A_TON_INTERNATIONAL)
+			{
+				*number++ = '+';
+			}
+			for (; syms > 0; syms -= 2, *pdu += 2, *pdu_length -= 2)
 			{
 				digit = pdu_code2digit(pdu[0][1]);
-				if(digit <= 0)
+				if (digit <= 0)
 					return -1;
 				*number++ = digit;
 
 				digit = pdu_code2digit(pdu[0][0]);
-				if((signed char)digit < 0 || (digit == 0 && (syms != 2 || (digits & 0x1) == 0)))
+				if ((signed char)digit < 0 || (digit == 0 && (syms != 2 || (digits & 0x1) == 0)))
 					return -1;
 
 				*number++ = digit;
 			}
-			if((digits & 0x1) == 0)
+			if ((digits & 0x1) == 0)
 				*number = 0;
 			return *pdu - begin;
 		}
@@ -701,9 +730,10 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 						{
 							int pid = pdu_parse_byte(pdu, &pdu_length);
 							*oa_enc = STR_ENCODING_7BIT;
-							if(oa_toa == NUMBER_TYPE_ALPHANUMERIC)
+							if ((oa_toa & TP_A_TON) == TP_A_TON_ALPHANUMERIC) {
 								*oa_enc = STR_ENCODING_7BIT_HEX;
-							if(pid >= 0)
+							}
+							if (pid >= 0)
 							{
 								/* TODO: support other types of messages */
 								if( (pid == PDU_PID_SMS) || (pid & PDU_PID_SMS_REPLACE_MASK) )
