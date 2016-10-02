@@ -837,17 +837,17 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 	struct cpvt* cpvt;
 
 	/* TODO: pass also Subscriber number or other DID info for exten  */
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+#if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
 	struct ast_channel * channel = new_channel(
 			pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
 			pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten),
 			NULL, NULL);
-#else /* 13- */
+#else /* 12- */
 	struct ast_channel * channel = new_channel(
 			pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
 			pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten),
 			NULL);
-#endif /* ^13- */
+#endif /* ^12- */
 
 	if (!channel)
 	{
