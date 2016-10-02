@@ -4,6 +4,8 @@
 #ifndef CHAN_DONGLE_AT_SEND_H_INCLUDED
 #define CHAN_DONGLE_AT_SEND_H_INCLUDED
 
+#include "ast_config.h"
+
 #include "export.h"		/* EXPORT_DECL EXPORT_DEF */
 #include "dc_config.h"		/* call_waiting_t */
 #include "mutils.h"		/* enum2str_def() ITEMS_OF() */

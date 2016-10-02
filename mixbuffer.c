@@ -1,11 +1,8 @@
 /*
    Copyright (C) 2010 bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
-#include <asterisk.h>
 #include <asterisk/utils.h>			/* ast_slinear_saturated_add() */
 
 #include "mixbuffer.h"

@@ -9,18 +9,15 @@
    Copyright (C) 2010 - 2011
    bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE			/* vasprintf() in asterisk/utils.h */
 #endif /* #ifndef _GNU_SOURCE */
 
+#include "ast_config.h"
+
 #include <sys/types.h>
 #include <errno.h>
 
-#include <asterisk.h>
 #include <asterisk/channel.h>		/* ast_waitfor_n_fd() */
 #include <asterisk/logger.h>		/* ast_debug() */
 

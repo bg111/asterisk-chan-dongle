@@ -31,11 +31,7 @@
  *
  * \ingroup channel_drivers
  */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
-
-#include <asterisk.h>
+#include "ast_config.h"
 
 #if ASTERISK_VERSION_NUM < 140000 /* 14- */
 ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")

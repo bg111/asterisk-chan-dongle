@@ -6,9 +6,7 @@
 
    Dmitry Vagin <dmitry2004@yandex.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
 #include "memmem.h"
 #include <string.h>			/* memchr() */

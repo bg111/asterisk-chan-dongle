@@ -1,9 +1,7 @@
 /*
    Copyright (C) 2011 bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
 #include <sys/types.h>			/* u_int16_t u_int8_t */
 #include <dirent.h>			/* DIR */

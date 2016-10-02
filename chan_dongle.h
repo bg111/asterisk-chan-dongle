@@ -12,7 +12,8 @@
 #ifndef CHAN_DONGLE_H_INCLUDED
 #define CHAN_DONGLE_H_INCLUDED
 
-#include <asterisk.h>
+#include "ast_config.h"
+
 #include <asterisk/lock.h>
 #include <asterisk/linkedlists.h>
 

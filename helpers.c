@@ -8,13 +8,10 @@
 
    bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
 #include <signal.h>				/* SIGURG */
 
-#include <asterisk.h>
 #include <asterisk/callerid.h>			/*  AST_PRES_* */
 
 #include "helpers.h"

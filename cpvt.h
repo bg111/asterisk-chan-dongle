@@ -4,7 +4,8 @@
 #ifndef CHAN_DONGLE_CPVT_H_INCLUDED
 #define CHAN_DONGLE_CPVT_H_INCLUDED
 
-#include <asterisk.h>
+#include "ast_config.h"
+
 #include <asterisk/linkedlists.h>		/* AST_LIST_ENTRY() */
 #include <asterisk/frame.h>			/* AST_FRIENDLY_OFFSET */
 

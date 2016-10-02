@@ -4,7 +4,8 @@
 #ifndef CHAN_DONGLE_DC_CONFIG_H_INCLUDED
 #define CHAN_DONGLE_DC_CONFIG_H_INCLUDED
 
-#include <asterisk.h>
+#include "ast_config.h"
+
 #include <asterisk/channel.h>		/* AST_MAX_CONTEXT MAX_LANGUAGE */
 
 #include "export.h"			/* EXPORT_DECL EXPORT_DEF */

@@ -9,11 +9,8 @@
    Copyright (C) 2010 - 2011
    bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
-#include <asterisk.h>
 #include <asterisk/utils.h>		/* ast_free() */
 
 #include "at_queue.h"

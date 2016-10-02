@@ -206,11 +206,16 @@ AC_CHECK_FUNCS([memchr memmove memset memmem strcasecmp strchr strncasecmp strto
 
 dnl Apply options to defines
 if test "x$enable_debug" = "xyes" ; then
-  CFLAGS="$CFLAGS -O0 -g"
+  CFLAGS="$CFLAGS -O0 -g "
   AC_DEFINE([__DEBUG__], [1], [Build with debugging])
 else
   CFLAGS="$CFLAGS -O6"
 fi
+
+dnl Asterisk header files use lots of old style declarations, ignore those.
+dnl > warning: ‘inline’ is not at beginning of declaration [-Wold-style-declaration]
+dnl >   static void force_inline _ast_assert(...)
+CFLAGS="$CFLAGS -Wno-old-style-declaration"
 
 if test "x$enable_manager" = "xyes" ; then
   AC_DEFINE([BUILD_MANAGER],[1], [Build Manager extentions])

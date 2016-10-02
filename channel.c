@@ -8,11 +8,8 @@
 
    bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
-#include <asterisk.h>
 #include <asterisk/dsp.h>			/* ast_dsp_digitreset() */
 #include <asterisk/pbx.h>			/* pbx_builtin_setvar_helper() */
 #include <asterisk/module.h>			/* ast_module_ref() ast_module_info = shit */

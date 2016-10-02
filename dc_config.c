@@ -1,10 +1,6 @@
 /*
    Copyright (C) 2010 bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
-
 #include "dc_config.h"
 #include <asterisk/callerid.h>				/* ast_parse_caller_presentation() */
 

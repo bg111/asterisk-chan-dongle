@@ -4,7 +4,8 @@
 #ifndef CHAN_DONGLE_CHANNEL_H_INCLUDED
 #define CHAN_DONGLE_CHANNEL_H_INCLUDED
 
-#include <asterisk.h>
+#include "ast_config.h"
+
 #include <asterisk/frame.h>		/* enum ast_control_frame_type */
 
 #include "ast_compat.h"			/* asterisk compatibility fixes */

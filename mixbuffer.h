@@ -5,7 +5,8 @@
 #ifndef CHAN_DONGLE_MIXBUFFER_H_INCLUDED
 #define CHAN_DONGLE_MIXBUFFER_H_INCLUDED
 
-#include <asterisk.h>
+#include "ast_config.h"
+
 #include <asterisk/linkedlists.h>		/* AST_LIST_ENTRY() AST_LIST_HEAD_NOLOCK() */
 
 #include "ringbuffer.h"
