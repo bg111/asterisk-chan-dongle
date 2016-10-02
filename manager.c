@@ -1,6 +1,5 @@
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+/* Required outside the BUILD_MANAGER #ifdef! */
+#include "ast_config.h"
 
 #ifdef BUILD_MANAGER /* no manager, no copyright */
 /*
@@ -14,7 +13,6 @@
    bg <bg_one@mail.ru>
 */
 
-#include <asterisk.h>
 #include <asterisk/stringfields.h>		/* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/manager.h>			/* struct mansession, struct message ... */
 #include <asterisk/strings.h>			/* ast_strlen_zero() */

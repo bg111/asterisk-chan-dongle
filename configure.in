@@ -206,7 +206,7 @@ AC_CHECK_FUNCS([memchr memmove memset memmem strcasecmp strchr strncasecmp strto
 
 dnl Apply options to defines
 if test "x$enable_debug" = "xyes" ; then
-  CFLAGS="$CFLAGS -O0 -g "
+  CFLAGS="$CFLAGS -O0 -g"
   AC_DEFINE([__DEBUG__], [1], [Build with debugging])
 else
   CFLAGS="$CFLAGS -O6"
@@ -218,11 +218,11 @@ dnl >   static void force_inline _ast_assert(...)
 CFLAGS="$CFLAGS -Wno-old-style-declaration"
 
 if test "x$enable_manager" = "xyes" ; then
-  AC_DEFINE([BUILD_MANAGER],[1], [Build Manager extentions])
+  AC_DEFINE([BUILD_MANAGER],[1], [Build Manager extensions])
 fi
 
 if test "x$enable_apps" = "xyes" ; then
-  AC_DEFINE([BUILD_APPLICATIONS],[1],[Build extention applications])
+  AC_DEFINE([BUILD_APPLICATIONS],[1],[Build Application extensions])
 fi
 
 case "$target_os" in
