@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #ifdef BUILD_APPLICATIONS
 /*
    Copyright (C) 2009 - 2010
@@ -10,8 +14,7 @@
    bg <bg_one@mail.ru>
 */
 
-#include "ast_config.h"
-
+#include <asterisk.h>
 #include <asterisk/app.h>	/* AST_DECLARE_APP_ARGS() ... */
 #include <asterisk/pbx.h>	/* pbx_builtin_setvar_helper() */
 #include <asterisk/module.h>	/* ast_register_application2() ast_unregister_application() */
