@@ -62,6 +62,18 @@ Here is an example for the dialplan:
     exten => _X.,1,Dial(Dongle/r1/${EXTEN})
     exten => _X.,n,Hangup
 
+    exten => *#123#,1,DongleSendUSSD(dongle0,${EXTEN})
+    exten => *#123#,n,Answer()
+    exten => *#123#,n,Wait(2)
+    exten => *#123#,n,Playback(vm-goodbye)
+    exten => *#123#,n,Hangup()
+
+    exten => _#X.,1,DongleSendSMS(dongle0,${EXTEN:1},"Please call me",1440,yes)
+    exten => _#X.,n,Answer()
+    exten => _#X.,n,Wait(2)
+    exten => _#X.,n,Playback(vm-goodbye)
+    exten => _#X.,n,Hangup()
+
 You can also use this:
 ----------------------
 
