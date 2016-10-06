@@ -113,6 +113,46 @@ static int app_send_sms_exec (attribute_unused struct ast_channel* channel, cons
 	return !status;
 }
 
+static int app_send_ussd_exec(attribute_unused struct ast_channel* channel, const char* data)
+{
+	char* parse;
+	const char* msg;
+	int status;
+	void* msgid;
+
+	AST_DECLARE_APP_ARGS(args,
+		 AST_APP_ARG(device);
+		 AST_APP_ARG(ussd);
+	);
+
+	if (ast_strlen_zero(data))
+	{
+		return -1;
+	}
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.device))
+	{
+		ast_log(LOG_ERROR, "NULL device for ussd -- USSD will not be sent\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.ussd))
+	{
+		ast_log(LOG_ERROR, "NULL ussd command -- USSD will not be sent\n");
+		return -1;
+	}
+
+	msg = send_ussd(args.device, args.ussd, &status, &msgid);
+	if(!status)
+	{
+		ast_log(LOG_ERROR, "[%s] %s with id %p\n", args.device, msg, msgid);
+	}
+	return !status;
+}
 
 
 static const struct dongle_application
@@ -143,6 +183,14 @@ static const struct dongle_application
 		"  Message  - text of the message\n"
 		"  Validity - Validity period in minutes\n"
 		"  Report   - Boolean flag for report request\n"
+	},
+	{
+		"DongleSendUSSD",
+		app_send_ussd_exec,
+		"DongleSendUSSD(Device,USSD)",
+		"DongleSendUSSD(Device,USSD)\n"
+		"  Device   - Id of device from dongle.conf\n"
+		"  USSD     - ussd command\n"
 	}
 };
 
