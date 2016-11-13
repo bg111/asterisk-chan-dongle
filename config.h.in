@@ -1,4 +1,4 @@
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* The Asterisk version as configured --with-astversion. */
 #undef ASTERISK_VERSION_NUM
@@ -6,10 +6,10 @@
 /* name of asterisk module */
 #undef AST_MODULE
 
-/* Build extention applications */
+/* Build Application extensions */
 #undef BUILD_APPLICATIONS
 
-/* Build Manager extentions */
+/* Build Manager extensions */
 #undef BUILD_MANAGER
 
 /* Define to 1 if you have HAVE_AST_CONTROL_SRCCHANGE in asterisk/frame.h */

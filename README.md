@@ -42,6 +42,13 @@ Some useful AT commands:
     AT^SYSCFG=13,0,3FFFFFFF,0,3     #modem 2G only, automatic search any band, no roaming
     AT^U2DIAG=0                     #enable modem function
 
+Building:
+----------
+
+    $ ./bootstrap
+    $ ./configure --with-astversion=131200
+    $ make
+
 Here is an example for the dialplan:
 ------------------------------------
 
