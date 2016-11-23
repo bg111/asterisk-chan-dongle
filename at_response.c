@@ -410,8 +410,21 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				ast_log (LOG_ERROR, "[%s] Error Supplementary Service Notification activation failed\n", PVT_ID(pvt));
 				goto e_return;
 
-			case CMD_AT_CMGF:
 			case CMD_AT_CPMS:
+				/* Switch to "AT+CPMS=\"SM\",\"SM\",\"SM\"\r" */
+				if (set_cpms_sm ())
+				{
+					ast_debug (1, "Switch to 'AT+CPMS=\"SM\",\"SM\",\"SM\"'\n", PVT_ID(pvt));
+					/* restart initialization from cmd CMD_AT_CPMS */
+					if (at_enque_initialization(task->cpvt, CMD_AT_CPMS))
+					{
+						ast_log (LOG_ERROR, "[%s] Error querying SMS storage selection\n", PVT_ID(pvt));
+						goto e_return;
+					}
+					break;
+				}
+
+			case CMD_AT_CMGF:
 			case CMD_AT_CNMI:
 				ast_debug (1, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				ast_debug (1, "[%s] No SMS support\n", PVT_ID(pvt));
