@@ -27,8 +27,7 @@ before_script:
   - aclocal
   - autoconf
   - automake -a || true  # do install stuff, don't create makefile
-  - ASTVERINT=$(echo $ASTVER | sed -e 's/^[^.]*$/&.0/;s/\./0/')00
-  - ./configure --with-astversion=$ASTVERINT --with-asterisk=./asterisk-$ASTVER/include
+  - ./configure --with-astversion=$ASTVER --with-asterisk=./asterisk-$ASTVER/include
 
 script:
   - make clean all

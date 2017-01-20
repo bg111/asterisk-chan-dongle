@@ -27,9 +27,10 @@ AC_ARG_WITH(
 dnl  Required: asterisk version
 AC_ARG_WITH(
 	[astversion],
-	AS_HELP_STRING([--with-astversion=M.m.u], [set asterisk version; for example: 13.13.1]),
-	[ if echo "$with_astversion" | grep -q '^[[0-9]][[0-9]]\?\.[[0-9]][[0-9]]\?\.[[0-9]][[0-9]]\?$'
-          then with_astversion=$(echo $with_astversion | tr . '\n' | sed -e 's/^.$/0&/' | tr -d '\n')
+	AS_HELP_STRING([--with-astversion=M.m.u], [set asterisk version; for example: 14 or 13.13.1]),
+	[ if echo "$with_astversion" | grep -qE '^[[0-9]][[0-9]]?(\.[[0-9]][[0-9]]?){0,2}$'
+          then with_astversion=$(echo $with_astversion | sed -e 's/.*/&.0.0/' | tr . '\n' |
+				 head -n3 | sed -e 's/^.$/0&/' | tr -d '\n' | sed -e 's/^0*//')
 	  else AC_MSG_ERROR([Invalid --with-astversion=M.m.u value]); fi ],
 	[ AC_MSG_ERROR([Please set --with-astversion=M.m.u (major.minor.micro)]) ]
 )

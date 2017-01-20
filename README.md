@@ -46,11 +46,11 @@ Building:
 ----------
 
     $ ./bootstrap
-    $ ./configure --with-astversion=13.13.1
+    $ ./configure --with-astversion=13.7
     $ make
 
 If you run a different version of Asterisk, you'll need to update the
-`13.13.1` as appropriate, obviously.
+`13.7` as appropriate, obviously.
 
 If you did not `make install` Asterisk in the usual location and configure
 cannot find the asterisk header files in `/usr/include/asterisk`, you may
