@@ -46,8 +46,15 @@ Building:
 ----------
 
     $ ./bootstrap
-    $ ./configure --with-astversion=13.13.1  # if running Asterisk-13.13.1
+    $ ./configure --with-astversion=13.13.1
     $ make
+
+If you run a different version of Asterisk, you'll need to update the
+`13.13.1` as appropriate, obviously.
+
+If you did not `make install` Asterisk in the usual location and configure
+cannot find the asterisk header files in `/usr/include/asterisk`, you may
+optionally pass `--with-asterisk=PATH/TO/INCLUDE`.
 
 Here is an example for the dialplan:
 ------------------------------------
