@@ -46,7 +46,7 @@ Building:
 ----------
 
     $ ./bootstrap
-    $ ./configure --with-astversion=131200
+    $ ./configure --with-astversion=13.13.1  # if running Asterisk-13.13.1
     $ make
 
 Here is an example for the dialplan:
