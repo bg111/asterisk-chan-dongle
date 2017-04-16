@@ -59,6 +59,10 @@ optionally pass `--with-asterisk=PATH/TO/INCLUDE`.
 Here is an example for the dialplan:
 ------------------------------------
 
+**WARNING**: *This example uses the raw SMS message passed to System() directly.
+No sane person would do that with untrusted data without escaping/removing the
+single quotes.*
+
     [dongle-incoming]
     exten => sms,1,Verbose(Incoming SMS from ${CALLERID(num)} ${BASE64_DECODE(${SMS_BASE64})})
     exten => sms,n,System(echo '${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)} - ${DONGLENAME} - ${CALLERID(num)}: ${BASE64_DECODE(${SMS_BASE64})}' >> /var/log/asterisk/sms.txt)
