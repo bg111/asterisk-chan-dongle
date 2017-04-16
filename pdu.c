@@ -845,5 +845,9 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	/* skip UDH */
 	*pdu += udhl * 2;
 	pdu_length -= udhl * 2;
+
+	/* TODO: 7-bit alphabetet coding scheme doesn't properly skip past the udh!
+	 * see github.com/wdoekes/asterisk-chan-dongle/issues/13 */
+
 	return NULL;
 }

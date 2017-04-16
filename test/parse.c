@@ -181,29 +181,32 @@ void test_parse_cmgr()
 		str_encoding_t	oa_enc;
 		char		* msg;
 		str_encoding_t	msg_enc;
+		char            * msg_utf8;
 	};
 	static const struct test_case {
 		const char	* input;
 		struct result 	result;
 	} cases[] = {
-		{ "+CMGR: \"REC READ\",\"+79139131234\",,\"10/12/05,22:00:04+12\"\r\n041F04400438043204350442", 
+		{ "+CMGR: \"REC READ\",\"+79139131234\",,\"10/12/05,22:00:04+12\"\r\n041F04400438043204350442",
 			{
 				NULL,
 				"\"REC READ\",\"+79139131234",
 				"+79139131234",
 				STR_ENCODING_7BIT,
 				"041F04400438043204350442",
-				STR_ENCODING_UNKNOWN
+				STR_ENCODING_UNKNOWN,
+				NULL
 			}
 		},
-		{ "+CMGR: \"REC READ\",\"002B00370039003500330037003600310032003000350032\",,\"10/12/05,22:00:04+12\"\r\n041F04400438043204350442", 
+		{ "+CMGR: \"REC READ\",\"002B00370039003500330037003600310032003000350032\",,\"10/12/05,22:00:04+12\"\r\n041F04400438043204350442",
 			{
-				NULL, 
+				NULL,
 				"\"REC READ\",\"002B00370039003500330037003600310032003000350032",
-				"002B00370039003500330037003600310032003000350032", 
+				"002B00370039003500330037003600310032003000350032",
 				STR_ENCODING_UNKNOWN,
 				"041F04400438043204350442",
-				STR_ENCODING_UNKNOWN
+				STR_ENCODING_UNKNOWN,
+				NULL
 			}
 		},
 		{ "+CMGR: 0,,106\r\n07911111111100F3040B911111111111F200000121702214952163B1582C168BC562B1984C2693C96432994C369BCD66B3D96C369BD168341A8D46A3D168B55AAD56ABD56AB59ACD66B3D96C369BCD76BBDD6EB7DBED76BBE170381C0E87C3E170B95C2E97CBE572B91C0C0683C16030180C",
@@ -213,8 +216,9 @@ void test_parse_cmgr()
 				"+11111111112",
 				STR_ENCODING_7BIT,
 				"B1582C168BC562B1984C2693C96432994C369BCD66B3D96C369BD168341A8D46A3D168B55AAD56ABD56AB59ACD66B3D96C369BCD76BBDD6EB7DBED76BBE170381C0E87C3E170B95C2E97CBE572B91C0C0683C16030180C",
-				STR_ENCODING_7BIT_HEX
-			} 
+				STR_ENCODING_7BIT_HEX,
+				"111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999000000000"
+			}
 		},
 		{ "+CMGR: 0,,159\r\n07919740430900F3440B912222222220F20008012180004390218C0500030003010031003100310031003100310031003100310031003200320032003200320032003200320032003200330033003300330033003300330033003300330034003400340034003400340034003400340034003500350035003500350035003500350035003500360036003600360036003600360036003600360037003700370037003700370037",
 			{
@@ -222,10 +226,35 @@ void test_parse_cmgr()
 				"0031003100310031003100310031003100310031003200320032003200320032003200320032003200330033003300330033003300330033003300330034003400340034003400340034003400340034003500350035003500350035003500350035003500360036003600360036003600360036003600360037003700370037003700370037",
 				"+22222222022",
 				STR_ENCODING_7BIT,
-				"050003000301" /* FIXME: what is this? data header? why is this here? test failure without it... */
+				"050003000301" /* This is including a 6 octet UDH; see .str above for the 'text' */
 				"0031003100310031003100310031003100310031003200320032003200320032003200320032003200330033003300330033003300330033003300330034003400340034003400340034003400340034003500350035003500350035003500350035003500360036003600360036003600360036003600360037003700370037003700370037",
-				STR_ENCODING_UCS2_HEX
-			} 
+				STR_ENCODING_UCS2_HEX,
+				"1111111111222222222233333333334444444444555555555566666666667777777"
+			}
+		},
+		{ "+CMGR: 0,,159\r\n07913306000000F0440B913306000000F0000061011012939280A0050003CA020182E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3",
+			{
+				NULL,
+				"82E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3",
+				"+33600000000",
+				STR_ENCODING_7BIT,
+				"050003CA020182E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3E13028180E87C3A060381C0E8382E170380C0A86C3",
+				STR_ENCODING_7BIT_HEX,
+				//"Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaaaa Aaa"
+				"[broken! see github.com/wdoekes/asterisk-chan-dongle/issues/13]"
+			}
+		},
+		{ "+CMGR: 0,,43\r\n07913306000000F0640B913306000000F00000610110129303801B050003CA0202C26150301C0E8741C170381C0605C3E17018",
+			{
+				NULL,
+				"C26150301C0E8741C170381C0605C3E17018",
+				"+33600000000",
+				STR_ENCODING_7BIT,
+				"050003CA0202C26150301C0E8741C170381C0605C3E17018",
+				STR_ENCODING_7BIT_HEX,
+				//"aa Aaaaa Aaaaa Aaaaa"
+				"[broken! see github.com/wdoekes/asterisk-chan-dongle/issues/13]"
+			}
 		},
 #if 0
 		{ "+CMGR: 0,,137\r\n07919333851805320409D034186C360300F0713032810105408849A7F1099A36A720D9EC059BB140319C2E06D38186EF39FD0D1AA3D3E176981E06155D20184B467381926CD0585E26A7E96F1001547481683816ACE60241CB7250DA6D7E83E67550D95E76D3EB61761AF486EBD36F771A14A6D3D3F632A80C12BFDDF539485E9EA7C9F534688C4E87DB61100D968BD95C",
@@ -253,16 +282,41 @@ void test_parse_cmgr()
 
 	result.oa = oa;
 	for (; idx < ITEMS_OF(cases); ++idx) {
+		char buf[4096];
+		int res;
 		int failidx = 0;
 		result.str = input = strdup(cases[idx].input);
+		result.msg_utf8 = buf;
+
 		fprintf(stderr, "/* %u */ %s(\"%s\")...", idx, "at_parse_cmgr", input);
-		result.res = at_parse_cmgr(&result.str, strlen(result.str), result.oa, sizeof(oa), &result.oa_enc, &result.msg, &result.msg_enc);
+		result.res = at_parse_cmgr(
+			&result.str, strlen(result.str), result.oa, sizeof(oa), &result.oa_enc,
+			&result.msg, &result.msg_enc);
+
+		/* convert to utf8 representation */
+		result.msg_utf8 = NULL;
+		if (!result.res) {
+			if (result.str != result.msg &&
+				       result.msg_enc == STR_ENCODING_7BIT_HEX) {
+				strcpy(buf, "[broken! see github.com/wdoekes/asterisk-chan-dongle/issues/13]");
+				result.msg_utf8 = buf;
+			} else if (result.msg_enc != STR_ENCODING_UNKNOWN) {
+				if (str_recode(
+						RECODE_DECODE, result.msg_enc,
+						result.str, strlen(result.str),
+						buf, sizeof(buf)) >= 0) {
+				       result.msg_utf8 = buf;
+				}
+			}
+		}
+
 		if (++failidx && safe_strcmp(result.res, cases[idx].result.res) == 0 &&
 		    ++failidx && safe_strcmp(result.str, cases[idx].result.str) == 0 &&
 		    ++failidx && safe_strcmp(result.oa, cases[idx].result.oa) == 0 &&
 		    ++failidx && result.oa_enc == cases[idx].result.oa_enc &&
 		    ++failidx && safe_strcmp(result.msg, cases[idx].result.msg) == 0 &&
 		    ++failidx && result.msg_enc == cases[idx].result.msg_enc &&
+		    ++failidx && safe_strcmp(result.msg_utf8, cases[idx].result.msg_utf8) == 0 &&
 		    ++failidx)
 		{
 			msg = "OK";
@@ -272,8 +326,9 @@ void test_parse_cmgr()
 			msg = "FAIL";
 			faults++;
 		}
-		fprintf(stderr, " = '%s' ('%s','%s',%d,'%s',%d) [fail@%d]\t%s\n",
-				result.res, result.str, result.oa, result.oa_enc, result.msg, result.msg_enc, failidx, msg);
+		fprintf(stderr, " = '%s' ('%s','%s',%d,'%s',%d) [fail@%d]\n[text=%s]\t%s\n",
+			result.res, result.str, result.oa, result.oa_enc,
+			result.msg, result.msg_enc, failidx, result.msg_utf8, msg);
 		free(input);
 	}
 	fprintf(stderr, "\n");
@@ -378,7 +433,9 @@ void test_parse_clcc()
 	for(; idx < ITEMS_OF(cases); ++idx) {
 		input = strdup(cases[idx].input);
 		fprintf(stderr, "%s(\"%s\")...", "at_parse_clcc", input);
-		result.res = at_parse_clcc(input, &result.index, &result.dir, &result.stat, &result.mode, &result.mpty, &result.number, &result.toa);
+		result.res = at_parse_clcc(
+			input, &result.index, &result.dir, &result.stat, &result.mode,
+			&result.mpty, &result.number, &result.toa);
 		if(result.res == cases[idx].result.res
 			&& result.index == cases[idx].result.index
 			&& result.dir == cases[idx].result.dir
@@ -394,7 +451,9 @@ void test_parse_clcc()
 			msg = "FAIL";
 			faults++;
 		}
-		fprintf(stderr, " = %d (%d,%d,%d,%d,%d,\"%s\",%d)\t%s\n", result.res, result.index, result.dir, result.stat, result.mode, result.mpty, result.number, result.toa, msg);
+		fprintf(stderr, " = %d (%d,%d,%d,%d,%d,\"%s\",%d)\t%s\n",
+			result.res, result.index, result.dir, result.stat, result.mode,
+			result.mpty, result.number, result.toa, msg);
 		free(input);
 	}
 	fprintf(stderr, "\n");
