@@ -246,6 +246,23 @@ static ssize_t char_to_hexstr_7bit_pad_6(const char* in, size_t in_length, char*
 	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 6);
 }
 
+/* GSM 03.38 7bit alphabet */
+static const char *const alphabet_7bit[128] = {
+	"@", "£", "$", "¥", "è", "é", "ù", "ì", "ò", "Ç", "\n", "Ø",
+	"ø", "\r", "Å", "å", "∆", "_", "Φ", "Γ", "Λ", "Ω", "Π", "Ψ",
+	"Σ", "Θ", "Ξ", "\x1b" /* ESC */, "Æ", "æ", "ß", "É", " ", "!",
+	"\"", "#", "¤", "%", "&", "'", "(", ")", "*", "+", ",", "-",
+	".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+	":", ";", "<", "=", ">", "?", "¡", "A", "B", "C", "D", "E",
+	"F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q",
+	"R", "S", "T", "U", "V", "W", "X", "Y", "Z", "Ä", "Ö", "Ñ",
+	"Ü", "§", "¿", "a", "b", "c", "d", "e", "f", "g", "h", "i",
+	"j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u",
+	"v", "w", "x", "y", "z", "ä", "ö", "ñ", "ü", "à"
+	/* TODO: ESC could unlock the basic charset extension,
+	 * interpeting the following char differently. */
+};
+
 static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char* out,
 		size_t out_size, unsigned in_padding)
 {
@@ -258,18 +275,21 @@ static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char
 	/* compute number of bytes */
 	in_length /= 2;
 
+	if (out_size == 0) {
+		return -1;
+	}
+
 	/* check if string is empty */
 	if (in_length == 0) {
 		out[0] = '\0';
 		return (0);
 	}
 
+#if 0
 	/* compute number of characters */
 	x = (((in_length * 8) - in_padding) / 7) + 1 /* terminating zero */;
-
-	/* check if final string fits within buffer */
-	if (x > out_size)
-		return -1;
+#endif
+	out_size -= 1; /* reserve room for terminating zero */
 
 	/* account for the bit padding */
 	in_padding = 7 - in_padding;
@@ -279,6 +299,8 @@ static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char
 
 	/* parse the hexstring */
 	for (x = i = 0; i != in_length; i++) {
+		if (x >= out_size)
+			return -1;
 		memcpy (buf, in + i * 2, 2);
 		if (sscanf (buf, "%x", &hexval) != 1)
 			return -1;
@@ -288,7 +310,12 @@ static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char
 		while (in_padding >= (2 * 7)) {
 			in_padding -= 7;
 			value >>= 7;
-			out[x++] = value & 0x7F;
+			{
+				const char *val = alphabet_7bit[value & 0x7F];
+				do {
+					out[x++] = *val++;
+				} while (*val && x < out_size);
+			}
 		}
 	}
 
