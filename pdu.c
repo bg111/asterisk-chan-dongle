@@ -258,43 +258,13 @@
 #define PDU_PID_EMAIL				0x32		/* bit5 Telematic interworking, bits 4..0 0x 12  = email */
 #define PDU_PID_SMS_REPLACE_MASK		0x40		/* bit7 Replace Short Message function activated (TP-PID = 0x41 to 0x47) */
 
-/* DCS */
-/*   bits 1..0 Class */
-#define PDU_DCS_CLASS_SHIFT			0
-#define PDU_DCS_CLASS0				(0x00 << PDU_DCS_CLASS_SHIFT)	/* Class 0, provides display and responds SC */
-#define PDU_DCS_CLASS1				(0x01 << PDU_DCS_CLASS_SHIFT)	/* Class 1, saves to MS (NV); or saves to the UIM card when MS is full */
-#define PDU_DCS_CLASS2				(0x02 << PDU_DCS_CLASS_SHIFT)	/* Class 2, dedicated for the UIM card The storage status is reported to SC after storage If the UIM card is full, failure and reason are reported to SC */
-#define PDU_DCS_CLASS3				(0x03 << PDU_DCS_CLASS_SHIFT)	/* Class 3, stored to TE, MS receives messages and does not sent to TE, but responds to SC */
-#define PDU_DCS_CLASS_MASK			(0x03 << PDU_DCS_CLASS_SHIFT)
-#define PDU_DCS_CLASS(dcs)			((dcs) & PDU_DCS_CLASS_MASK)
-
-/*   bits 3..2 Alpabet */
-#define PDU_DCS_ALPABET_SHIFT			2
-#define PDU_DCS_ALPABET_7BIT			(0x00 << PDU_DCS_ALPABET_SHIFT)
-#define PDU_DCS_ALPABET_8BIT			(0x01 << PDU_DCS_ALPABET_SHIFT)
-#define PDU_DCS_ALPABET_UCS2			(0x02 << PDU_DCS_ALPABET_SHIFT)
-#define PDU_DCS_ALPABET_MASK			(0x03 << PDU_DCS_ALPABET_SHIFT)
-#define PDU_DCS_ALPABET(dcs)			((dcs) & PDU_DCS_ALPABET_MASK)
-
-/*   bit 4 */
-#define PDU_DCS_BITS10_CTRL_SHIFT		4
-#define PDU_DCS_BITS10_RETAIN			(0x00 << PDU_DCS_BITS10_CTRL_SHIFT)
-#define PDU_DCS_BITS10_INUSE			(0x01 << PDU_DCS_BITS10_CTRL_SHIFT)
-#define PDU_DCS_BITS10_CTRL_MASK		(0x01 << PDU_DCS_BITS10_CTRL_SHIFT)
-#define PDU_DCS_BITS10_CTRL(dcs)		((dcs) & PDU_DCS_BITS10_CTRL_MASK)
-
-/*   bit 5 */
-#define PDU_DCS_COMPRESSION_SHIFT		5
-#define PDU_DCS_NOT_COMPRESSED			(0x00 << PDU_DCS_COMPRESSION_SHIFT)
-#define PDU_DCS_COMPRESSED			(0x01 << PDU_DCS_COMPRESSION_SHIFT)
-#define PDU_DCS_COMPRESSION_MASK		(0x01 << PDU_DCS_COMPRESSION_SHIFT)
-#define PDU_DCS_COMPRESSION(dcs)		((dcs) & PDU_DCS_COMPRESSION_MASK)
-
-/*   bit 7..6 */
-#define PDU_DCS_76_SHIFT			6
-#define PDU_DCS_76_00				(0x00 << PDU_DCS_76_SHIFT)
-#define PDU_DCS_76_MASK				(0x03 << PDU_DCS_76_SHIFT)
-#define PDU_DCS_76(dcs)				((dcs) & PDU_DCS_76_MASK)
+/*   bits 3..2  */
+#define PDU_DCS_ALPHABET_SHIFT			2
+#define PDU_DCS_ALPHABET_7BIT			(0x00 << PDU_DCS_ALPHABET_SHIFT)
+#define PDU_DCS_ALPHABET_8BIT			(0x01 << PDU_DCS_ALPHABET_SHIFT)
+#define PDU_DCS_ALPHABET_UCS2			(0x02 << PDU_DCS_ALPHABET_SHIFT)
+#define PDU_DCS_ALPHABET_MASK			(0x03 << PDU_DCS_ALPHABET_SHIFT)
+#define PDU_DCS_ALPHABET(dcs)			((dcs) & PDU_DCS_ALPHABET_MASK)
 
 #define ROUND_UP2(x)				(((x) + 1) & (0xFFFFFFFF << 1))
 #define LENGTH2OCTETS(x)			(((x) + 1)/2)
@@ -560,8 +530,8 @@ static int check_encoding(const char* msg, unsigned length)
 {
 	str_encoding_t possible_enc = get_encoding(RECODE_ENCODE, msg, length);
 	if(possible_enc == STR_ENCODING_7BIT_HEX_PAD_0)
-		return PDU_DCS_ALPABET_7BIT;
-	return PDU_DCS_ALPABET_UCS2;
+		return PDU_DCS_ALPHABET_7BIT;
+	return PDU_DCS_ALPHABET_UCS2;
 }
 
 /*!
@@ -597,12 +567,13 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const cha
 	dcs = check_encoding(msg, msg_len);
 
 	/* cannot exceed 140 octets for not compressed or cannot exceed 160 septets for compressed */
-/*
-	if(((PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_UCS2) && msg_len > 70) || (PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_8BIT && msg_len > 140) || msg_len > 160)
-	{
+#if 0
+	if (((PDU_DCS_ALPHABET(dcs) == PDU_DCS_ALPHABET_UCS2) && msg_len > 70) ||
+			(PDU_DCS_ALPHABET(dcs) == PDU_DCS_ALPHABET_8BIT && msg_len > 140) ||
+			msg_len > 160) {
 		return -E2BIG;
 	}
-*/
+#endif
 	if(sca[0] == '+')
 		sca++;
 
@@ -645,7 +616,10 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const cha
 	len += pdu_store_number(buffer + len, dst, dst_len);
 
 	/* forward TP-User-Data */
-	data_len = str_recode(RECODE_ENCODE, dcs == PDU_DCS_ALPABET_UCS2 ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT_HEX_PAD_0, msg, msg_len, buffer + len + 8, length - len - 11);
+	data_len = str_recode(
+		RECODE_ENCODE,
+		(dcs == PDU_DCS_ALPHABET_UCS2 ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT_HEX_PAD_0),
+		msg, msg_len, buffer + len + 8, length - len - 11);
 	if(data_len < 0)
 	{
 		return -EINVAL;
@@ -656,7 +630,7 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const cha
 	}
 
 	/* calc UDL */
-	if(dcs == PDU_DCS_ALPABET_UCS2)
+	if(dcs == PDU_DCS_ALPHABET_UCS2)
 		msg_len = data_len / 2;
 
 	/* TP-PID. Protocol identifier  */
@@ -680,20 +654,20 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const cha
 
 
 #/* */
-static str_encoding_t pdu_dcs_alpabet2encoding(int alpabet)
+static str_encoding_t pdu_dcs_alphabet2encoding(int alphabet)
 {
 	str_encoding_t rv = STR_ENCODING_UNKNOWN;
 
-	alpabet >>= PDU_DCS_ALPABET_SHIFT;
-	switch(alpabet)
+	alphabet >>= PDU_DCS_ALPHABET_SHIFT;
+	switch(alphabet)
 	{
-		case (PDU_DCS_ALPABET_7BIT >> PDU_DCS_ALPABET_SHIFT):
+		case (PDU_DCS_ALPHABET_7BIT >> PDU_DCS_ALPHABET_SHIFT):
 			rv = STR_ENCODING_7BIT_HEX_PAD_0;
 			break;
-		case (PDU_DCS_ALPABET_8BIT >> PDU_DCS_ALPABET_SHIFT):
+		case (PDU_DCS_ALPHABET_8BIT >> PDU_DCS_ALPHABET_SHIFT):
 			rv = STR_ENCODING_8BIT_HEX;
 			break;
-		case (PDU_DCS_ALPABET_UCS2 >> PDU_DCS_ALPABET_SHIFT):
+		case (PDU_DCS_ALPHABET_UCS2 >> PDU_DCS_ALPHABET_SHIFT):
 			rv = STR_ENCODING_UCS2_HEX;
 			break;
 	}
@@ -711,7 +685,7 @@ static str_encoding_t pdu_dcs_alpabet2encoding(int alpabet)
 EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc)
 {
 	size_t pdu_length = strlen(*pdu);
-	int field_len, pdu_type, oa_digits, oa_toa, pid, dcs, ts, udl, udhl;
+	int field_len, pdu_type, oa_digits, oa_toa, pid, dcs, alphabet, ts, udl, udhl;
 
 	/* set msg as NULL until the end */
 	*msg = NULL;
@@ -796,26 +770,57 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	if (dcs < 0) {
 		return "Can't parse DSC";
 	}
+	/* http://www.etsi.org/deliver/etsi_gts/03/0338/05.00.00_60/gsmts_0338v050000p.pdf */
+	/* The TP-Data-Coding-Scheme field, defined in GSM 03.40,
+	 * indicates the data coding scheme of the TP-UD field, and may
+	 * indicate a message class. The octet is used according to a
+	 * coding group which is indicated in bits 7..4. The octet is
+	 * then coded as follows: */
+	{
+		int dcs_hi = dcs >> 4;
+		int dcs_lo = dcs & 0xF;
+		int reserved = 0;
+		alphabet = -1; /* 7bit, 8bit, ucs2 */
 
-	/* TODO: support compression */
-	if (!(PDU_DCS_76(dcs) == PDU_DCS_76_00
-			&&
-			PDU_DCS_COMPRESSION(dcs) == PDU_DCS_NOT_COMPRESSED
-			&&
-			(
-			 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_7BIT
-			 ||
-			 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_8BIT
-			 ||
-			 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_UCS2
-			))) {
+		switch (dcs_hi) {
+		case 0x0: /* HIGH 0000: Regular message */
+		case 0xF: /* HIGH 1111: Data coding/message class */
+			/* apparently bits 0..3 are not reserved anymore:
+			 * bits 3..2: {7bit, 8bit, ucs2, undef} */
+			alphabet = PDU_DCS_ALPHABET(dcs);
+			if (alphabet == PDU_DCS_ALPHABET_MASK) {
+				reserved = 1;
+			}
+			/* if 0xF then (dsc_lo & 3): {
+			 *     class0, class1-ME-specific,
+			 *     class2-SIM-specific,
+			 *     class3-TE-specific (GSM TS 07.05)} */
+			break;
+		case 0xC: /* HIGH 1100: "Discard" MWI */
+		case 0xD: /* HIGH 1101: "Store" MWI */
+			/* if 0xC then the recipient may discard message
+			 * contents, and only show notification */
+			/*inactive_active = (dcs_lo & 8);*/
+			reserved = (dcs_lo & 4); /* bit 2 reserved */
+			/* (dsc_lo & 3): {VM, Fax, E-mail, Other} */
+			break;
+		default:
+			reserved = 1;
+			break;
+		}
+		if (reserved) {
+			*pdu -= 2;
+			return "Reserved DCS value";
+		}
+	}
+	if (alphabet == -1) {
 		*pdu -= 2;
 		return "Unsupported DCS value";
 	}
 
 	ts = pdu_parse_timestamp(pdu, &pdu_length);
-	*msg_enc = pdu_dcs_alpabet2encoding(PDU_DCS_ALPABET(dcs));
-	if(ts < 0) {
+	*msg_enc = pdu_dcs_alphabet2encoding(alphabet);
+	if (ts < 0) {
 		return "Can't parse Timestamp";
 	}
 
@@ -825,7 +830,7 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	}
 
 	/* calculate number of octets in UD */
-	if (PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_7BIT) {
+	if (alphabet == PDU_DCS_ALPHABET_7BIT) {
 		udl = ((udl + 1) * 7) >> 3;
 	}
 	if ((size_t)udl * 2 != pdu_length) {
