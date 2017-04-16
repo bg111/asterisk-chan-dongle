@@ -1491,7 +1491,8 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
 		}
 		else
 		{
-			ast_log(LOG_WARNING, "Invalid value for %s(callstate).", function);
+			ast_log(LOG_WARNING, "Invalid value for %s(callstate).\n",
+				function);
 			return -1;
 		}
 
@@ -1508,12 +1509,16 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
 			if(at_enque_activate(cpvt))
 			{
 				/* TODO: handle error */
-				ast_log(LOG_ERROR, "Error state to active for call idx %d in %s(callstate).", cpvt->call_idx, function);
+				ast_log(LOG_ERROR,
+					"Error state to active for call idx %d in %s(callstate).\n",
+					cpvt->call_idx, function);
 			}
 		}
 		else
 		{
-			ast_log(LOG_WARNING, "allow change state to 'active' only from 'held' in %s(callstate).", function);
+			ast_log(LOG_WARNING,
+				"allow change state to 'active' only from 'held' in %s(callstate).\n",
+				function);
 			ret = -1;
 		}
 		ast_mutex_unlock(&cpvt->pvt->lock);
@@ -1538,7 +1543,7 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
 		}
 		else
 		{
-			ast_log(LOG_WARNING, "Invalid value for %s(dtmf).", function);
+			ast_log(LOG_WARNING, "Invalid value for %s(dtmf).\n", function);
 			return -1;
 		}
 	}
