@@ -65,6 +65,10 @@ $(PROJS): $(chan_dongles_so_OBJS) Makefile
 .c.o: Makefile config.h
 	$(CC) $(CFLAGS) $(MAKE_DEPS) -o $@ -c $<
 
+check: tests
+	./test/test1
+	./test/parse
+
 tests: test/test1 test/parse
 
 test/test1: $(test1_OBJS)

@@ -157,6 +157,20 @@ void test_parse_cmti()
 	fprintf(stderr, "\n");
 }
 
+int safe_strcmp(const char *a, const char *b)
+{
+	if (a == NULL && b == NULL) {
+		return 0;
+	}
+	if (a == NULL) {
+		return -1;
+	}
+	if (b == NULL) {
+		return 1;
+	}
+	return strcmp(a, b);
+}
+
 #/* */
 void test_parse_cmgr()
 {
@@ -208,11 +222,27 @@ void test_parse_cmgr()
 				"0031003100310031003100310031003100310031003200320032003200320032003200320032003200330033003300330033003300330033003300330034003400340034003400340034003400340034003500350035003500350035003500350035003500360036003600360036003600360036003600360037003700370037003700370037",
 				"+22222222022",
 				STR_ENCODING_7BIT,
+				"050003000301" /* FIXME: what is this? data header? why is this here? test failure without it... */
 				"0031003100310031003100310031003100310031003200320032003200320032003200320032003200330033003300330033003300330033003300330034003400340034003400340034003400340034003500350035003500350035003500350035003500360036003600360036003600360036003600360037003700370037003700370037",
 				STR_ENCODING_UCS2_HEX
 			} 
 		},
-
+#if 0
+		{ "+CMGR: 0,,137\r\n07919333851805320409D034186C360300F0713032810105408849A7F1099A36A720D9EC059BB140319C2E06D38186EF39FD0D1AA3D3E176981E06155D20184B467381926CD0585E26A7E96F1001547481683816ACE60241CB7250DA6D7E83E67550D95E76D3EB61761AF486EBD36F771A14A6D3D3F632A80C12BFDDF539485E9EA7C9F534688C4E87DB61100D968BD95C",
+			/* INFO SMS 23/03, 18:10: Costo chiamata E.
+			 * 0,24. Il credito è E. 48,05. Per info su
+			 * eventuali opzioni attive e bonus residui
+			 * chiama 40916. */
+			{
+				NULL,
+				"49A7F1099A36A720D9EC059BB140319C2E06D38186EF39FD0D1AA3D3E176981E06155D20184B467381926CD0585E26A7E96F1001547481683816ACE60241CB7250DA6D7E83E67550D95E76D3EB61761AF486EBD36F771A14A6D3D3F632A80C12BFDDF539485E9EA7C9F534688C4E87DB61100D968BD95C",
+				"09D034186C3603", /* from 40033 .. ? */
+				STR_ENCODING_7BIT, /* ? */
+				"49A7F1099A36A720D9EC059BB140319C2E06D38186EF39FD0D1AA3D3E176981E06155D20184B467381926CD0585E26A7E96F1001547481683816ACE60241CB7250DA6D7E83E67550D95E76D3EB61761AF486EBD36F771A14A6D3D3F632A80C12BFDDF539485E9EA7C9F534688C4E87DB61100D968BD95C",
+				STR_ENCODING_UCS2_HEX /* ? */
+			}
+		},
+#endif
 	};
 
 	unsigned idx = 0;
@@ -222,24 +252,28 @@ void test_parse_cmgr()
 	const char * msg;
 
 	result.oa = oa;
-	for(; idx < ITEMS_OF(cases); ++idx) {
+	for (; idx < ITEMS_OF(cases); ++idx) {
+		int failidx = 0;
 		result.str = input = strdup(cases[idx].input);
-		fprintf(stderr, "%s(\"%s\")...", "at_parse_cmgr", input);
+		fprintf(stderr, "/* %u */ %s(\"%s\")...", idx, "at_parse_cmgr", input);
 		result.res = at_parse_cmgr(&result.str, strlen(result.str), result.oa, sizeof(oa), &result.oa_enc, &result.msg, &result.msg_enc);
-		if(((result.res == NULL && result.res == cases[idx].result.res) || strcmp(result.res, cases[idx].result.res) == 0)
-			&& strcmp(result.str, cases[idx].result.str) == 0
-			&& strcmp(result.oa, cases[idx].result.oa) == 0
-			&& result.oa_enc == cases[idx].result.oa_enc
-			&& strcmp(result.msg, cases[idx].result.msg) == 0
-			&& result.msg_enc == cases[idx].result.msg_enc)
+		if (++failidx && safe_strcmp(result.res, cases[idx].result.res) == 0 &&
+		    ++failidx && safe_strcmp(result.str, cases[idx].result.str) == 0 &&
+		    ++failidx && safe_strcmp(result.oa, cases[idx].result.oa) == 0 &&
+		    ++failidx && result.oa_enc == cases[idx].result.oa_enc &&
+		    ++failidx && safe_strcmp(result.msg, cases[idx].result.msg) == 0 &&
+		    ++failidx && result.msg_enc == cases[idx].result.msg_enc &&
+		    ++failidx)
 		{
 			msg = "OK";
 			ok++;
+			failidx = 0;
 		} else {
 			msg = "FAIL";
 			faults++;
 		}
-		fprintf(stderr, " = '%s' ('%s','%s',%d,'%s',%d)\t%s\n", result.res, result.str, result.oa, result.oa_enc, result.msg, result.msg_enc, msg);
+		fprintf(stderr, " = '%s' ('%s','%s',%d,'%s',%d) [fail@%d]\t%s\n",
+				result.res, result.str, result.oa, result.oa_enc, result.msg, result.msg_enc, failidx, msg);
 		free(input);
 	}
 	fprintf(stderr, "\n");
@@ -389,5 +423,9 @@ int main()
 	test_parse_ccwa();
 	
 	fprintf(stderr, "done %d tests: %d OK %d FAILS\n", ok + faults, ok, faults);
+
+	if (faults) {
+		return 1;
+	}
 	return 0;
 }

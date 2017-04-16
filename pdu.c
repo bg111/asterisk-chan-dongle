@@ -278,9 +278,9 @@
 
 /*   bit 4 */
 #define PDU_DCS_BITS10_CTRL_SHIFT		4
-#define PDU_DCS_BITS10_RETAIN			(0x00 << PDU_DCS_BIT10_CTRL_SHIFT)
-#define PDU_DCS_BITS10_INUSE			(0x01 << PDU_DCS_BIT10_CTRL_SHIFT)
-#define PDU_DCS_BITS10_CTRL_MASK		(0x01 << PDU_DCS_BIT10_CTRL_SHIFT)
+#define PDU_DCS_BITS10_RETAIN			(0x00 << PDU_DCS_BITS10_CTRL_SHIFT)
+#define PDU_DCS_BITS10_INUSE			(0x01 << PDU_DCS_BITS10_CTRL_SHIFT)
+#define PDU_DCS_BITS10_CTRL_MASK		(0x01 << PDU_DCS_BITS10_CTRL_SHIFT)
 #define PDU_DCS_BITS10_CTRL(dcs)		((dcs) & PDU_DCS_BITS10_CTRL_MASK)
 
 /*   bit 5 */
@@ -704,185 +704,146 @@ static str_encoding_t pdu_dcs_alpabet2encoding(int alpabet)
 /* TODO: split long function */
 EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc)
 {
-	const char * err = NULL;
 	size_t pdu_length = strlen(*pdu);
+	int field_len, pdu_type, oa_digits, oa_toa, pid, dcs, ts, udl, udhl;
+
+	/* set msg as NULL until the end */
+	*msg = NULL;
 
 	/* decode SCA */
-	int field_len = pdu_parse_sca(pdu, &pdu_length);
-	if(field_len > 0)
-	{
-		if(tpdu_length * 2 == pdu_length)
-		{
-			int pdu_type = pdu_parse_byte(pdu, &pdu_length);
-			if(pdu_type >= 0)
-			{
-				/* TODO: also handle PDUTYPE_MTI_SMS_SUBMIT_REPORT and PDUTYPE_MTI_SMS_STATUS_REPORT */
-				if(PDUTYPE_MTI(pdu_type) == PDUTYPE_MTI_SMS_DELIVER)
-				{
-					int oa_digits = pdu_parse_byte(pdu, &pdu_length);
-					if(oa_digits > 0)
-					{
-						int oa_toa;
-						field_len = pdu_parse_number(pdu, &pdu_length, oa_digits, &oa_toa, oa, oa_len);
-						if(field_len > 0)
-						{
-							int pid = pdu_parse_byte(pdu, &pdu_length);
-							*oa_enc = STR_ENCODING_7BIT;
-							if ((oa_toa & TP_A_TON) == TP_A_TON_ALPHANUMERIC) {
-								*oa_enc = STR_ENCODING_7BIT_HEX;
-							}
-							if (pid >= 0)
-							{
-								/* TODO: support other types of messages */
-								if( (pid == PDU_PID_SMS) || (pid & PDU_PID_SMS_REPLACE_MASK) )
-								{
-									int dcs = pdu_parse_byte(pdu, &pdu_length);
-									if(dcs >= 0)
-									{
-										// TODO: support compression
-										if( PDU_DCS_76(dcs) == PDU_DCS_76_00
-												&&
-												PDU_DCS_COMPRESSION(dcs) == PDU_DCS_NOT_COMPESSED
-												&&
-												(
-												 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_7BIT
-												 ||
-												 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_8BIT
-												 ||
-												 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_UCS2
-												)
-										  )
-										{
-											int ts = pdu_parse_timestamp(pdu, &pdu_length);
-											*msg_enc = pdu_dcs_alpabet2encoding(PDU_DCS_ALPABET(dcs));
-											if(ts >= 0)
-											{
-												int udl = pdu_parse_byte(pdu, &pdu_length);
-												if(udl >= 0)
-												{
-													/* calculate number of octets in UD */
-													if(PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_7BIT)
-														udl = ((udl + 1) * 7) >> 3;
-													if((size_t)udl * 2 == pdu_length)
-													{
-														if(PDUTYPE_UDHI(pdu_type) == PDUTYPE_UDHI_HAS_HEADER)
-														{
-															/* TODO: implement header parse */
-															int udhl = pdu_parse_byte(pdu, &pdu_length);
-															if(udhl >= 0)
-															{
-																/* NOTE: UDHL count octets no need calculation */
-																if(pdu_length >= (size_t)(udhl * 2))
-																{
-																	/* skip UDH */
-																	*pdu += udhl * 2;
-																	pdu_length -= udhl * 2;
-																}
-																else
-																{
-																	err = "Invalid UDH";
-																}
-															}
-															else
-															{
-																err = "Can't parse UDHL";
-															}
-														}
-														/* save message */
-														*msg = *pdu;
-													}
-													else
-													{
-														*pdu -= 2;
-														err = "UDL not match with UD length";
-													}
-												}
-												else
-												{
-													err = "Can't parse UDL";
-												}
-											}
-											else
-											{
-												err = "Can't parse Timestamp";
-											}
-										}
-										else
-										{
-											*pdu -= 2;
-											err = "Unsupported DCS value";
-										}
-									}
-									else
-									{
-										err = "Can't parse DSC";
-									}
-								}
-								else
-								{
-									err = "Unhandled PID value, only SMS supported";
-								}
-							}
-							else
-							{
-								err = "Can't parse PID";
-							}
-						}
-						else
-						{
-							err = "Can't parse OA";
-						}
-					}
-					else
-					{
-						err = "Can't parse length of OA";
-					}
-				}
-				else if(PDUTYPE_MTI(pdu_type) == PDUTYPE_MTI_SMS_STATUS_REPORT)
-				{
-					int reference = pdu_parse_byte(pdu, &pdu_length);
-					/* Skip over 8 bytes TP-DA */
-					if (reference >= 0 && pdu_length >= 8) {
-						(*pdu) += 8;
-						pdu_length -= 8;
-						/* Skip over 7 bytes timestamp TP-SCTS */
-						if (pdu_parse_timestamp(pdu, &pdu_length) >= 0 &&
-								/* Skip over 7 bytes timestamp TP-DT */
-								pdu_parse_timestamp(pdu, &pdu_length) >= 0) {
-							int tp_status = pdu_parse_byte(pdu, &pdu_length);
-							if ((tp_status & 0xf) == 0) {
-								err = (void*)0x1; /* HACK! */
-								*msg = (char*)(ssize_t)reference; /* HACK! */
-							} else {
-								err = "Good report, but delivery failed";
-							}
-						} else {
-							err = "FIXME error 1";
-						}
-					} else {
-						err = "FIXME error 2";
-					}
-				}
-				else
-				{
-					*pdu -= 2;
-					err = "Unhandled PDU Type MTI only SMS-DELIVER/SMS-STATUS-REPORT supported";
-				}
-			}
-			else
-			{
-				err = "Can't parse PDU Type";
-			}
-		}
-		else
-		{
-			err = "TPDU length not matched with actual length";
-		}
-	}
-	else
-	{
-		err = "Can't parse SCA";
+	field_len = pdu_parse_sca(pdu, &pdu_length);
+	if (field_len <= 0) {
+		return "Can't parse SCA";
 	}
 
-	return err;
+	if (tpdu_length * 2 != pdu_length) {
+		return "TPDU length not matched with actual length";
+	}
+
+	pdu_type = pdu_parse_byte(pdu, &pdu_length);
+	if (pdu_type < 0) {
+		return "Can't parse PDU Type";
+	}
+
+	/* TODO: also handle PDUTYPE_MTI_SMS_SUBMIT_REPORT and PDUTYPE_MTI_SMS_STATUS_REPORT */
+	if (PDUTYPE_MTI(pdu_type) == PDUTYPE_MTI_SMS_STATUS_REPORT)
+	{
+		const char *ret = NULL;
+		int reference = pdu_parse_byte(pdu, &pdu_length);
+		/* Skip over 8 bytes TP-DA */
+		if (reference >= 0 && pdu_length >= 8) {
+			(*pdu) += 8;
+			pdu_length -= 8;
+			/* Skip over 7 bytes timestamp TP-SCTS */
+			if (pdu_parse_timestamp(pdu, &pdu_length) >= 0 &&
+					/* Skip over 7 bytes timestamp TP-DT */
+					pdu_parse_timestamp(pdu, &pdu_length) >= 0) {
+				int tp_status = pdu_parse_byte(pdu, &pdu_length);
+				if ((tp_status & 0xf) == 0) {
+					ret = (void*)0x1; /* HACK! */
+					*msg = (char*)(ssize_t)reference; /* HACK! */
+				} else {
+					ret = "Good report, but delivery failed";
+				}
+			} else {
+				ret = "FIXME error 1";
+			}
+		} else {
+			ret = "FIXME error 2";
+		}
+		return ret;
+	}
+	if (PDUTYPE_MTI(pdu_type) != PDUTYPE_MTI_SMS_DELIVER) {
+		*pdu -= 2;
+		return "Unhandled PDU Type MTI only SMS-DELIVER/SMS-STATUS-REPORT supported";
+	}
+
+	oa_digits = pdu_parse_byte(pdu, &pdu_length);
+	if (oa_digits <= 0) {
+		return "Can't parse length of OA";
+	}
+
+	field_len = pdu_parse_number(pdu, &pdu_length, oa_digits, &oa_toa, oa, oa_len);
+	if (field_len <= 0) {
+		return "Can't parse OA";
+	}
+
+	pid = pdu_parse_byte(pdu, &pdu_length);
+	*oa_enc = STR_ENCODING_7BIT;
+	if ((oa_toa & TP_A_TON) == TP_A_TON_ALPHANUMERIC) {
+		*oa_enc = STR_ENCODING_7BIT_HEX;
+	}
+
+	if (pid < 0) {
+		return "Can't parse PID";
+	}
+
+	/* TODO: support other types of messages */
+	if (pid != PDU_PID_SMS && !(pid & PDU_PID_SMS_REPLACE_MASK)) {
+		return "Unhandled PID value, only SMS supported";
+	}
+
+	dcs = pdu_parse_byte(pdu, &pdu_length);
+	if (dcs < 0) {
+		return "Can't parse DSC";
+	}
+
+	/* TODO: support compression */
+	if (!(PDU_DCS_76(dcs) == PDU_DCS_76_00
+			&&
+			PDU_DCS_COMPRESSION(dcs) == PDU_DCS_NOT_COMPESSED
+			&&
+			(
+			 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_7BIT
+			 ||
+			 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_8BIT
+			 ||
+			 PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_UCS2
+			))) {
+		*pdu -= 2;
+		return "Unsupported DCS value";
+	}
+
+	ts = pdu_parse_timestamp(pdu, &pdu_length);
+	*msg_enc = pdu_dcs_alpabet2encoding(PDU_DCS_ALPABET(dcs));
+	if(ts < 0) {
+		return "Can't parse Timestamp";
+	}
+
+	udl = pdu_parse_byte(pdu, &pdu_length);
+	if (udl < 0) {
+		return "Can't parse UDL";
+	}
+
+	/* calculate number of octets in UD */
+	if (PDU_DCS_ALPABET(dcs) == PDU_DCS_ALPABET_7BIT) {
+		udl = ((udl + 1) * 7) >> 3;
+	}
+	if ((size_t)udl * 2 != pdu_length) {
+		*pdu -= 2;
+		return "UDL not match with UD length";
+	}
+
+	/* save message */
+	*msg = *pdu;
+
+	if (PDUTYPE_UDHI(pdu_type) != PDUTYPE_UDHI_HAS_HEADER) {
+		return NULL;
+	}
+
+	/* TODO: implement header parse */
+	udhl = pdu_parse_byte(pdu, &pdu_length);
+	if (udhl < 0) {
+		return "Can't parse UDHL";
+	}
+
+	/* NOTE: UDHL count octets no need calculation */
+	if (pdu_length < (size_t)(udhl * 2)) {
+		return "Invalid UDH";
+	}
+
+	/* skip UDH */
+	*pdu += udhl * 2;
+	pdu_length -= udhl * 2;
+	return NULL;
 }
