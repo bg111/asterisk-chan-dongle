@@ -1454,11 +1454,12 @@ static int channel_func_read(struct ast_channel* channel, attribute_unused const
 */
 	else if (!strcasecmp(data, "dtmf"))
 	{
+		const char* dtmf;
 		while (ast_mutex_trylock (&pvt->lock))
 		{
 			CHANNEL_DEADLOCK_AVOIDANCE (channel);
 		}
-		const char * dtmf = dc_dtmf_setting2str(pvt->real_dtmf);
+		dtmf = dc_dtmf_setting2str(pvt->real_dtmf);
 		ast_mutex_unlock(&pvt->lock);
 
 		ast_copy_string(buf, dtmf, len);

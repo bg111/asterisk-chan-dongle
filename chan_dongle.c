@@ -901,6 +901,7 @@ EXPORT_DEF struct pvt * find_device_ex(struct public_state * state, const char *
 			break;
 		}
 		ast_mutex_unlock (&pvt->lock);
+		pvt = NULL;
 	}
 	AST_RWLIST_UNLOCK(&state->devices);
 
@@ -976,7 +977,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 		{
 //			ast_mutex_lock(&state->round_robin_mtx);
 
-			/* Generate a list of all availible devices */
+			/* Generate a list of all available devices */
 			j = ITEMS_OF (round_robin);
 			c = 0; last_used = 0;
 			AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
@@ -1002,7 +1003,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				ast_mutex_unlock (&pvt->lock);
 			}
 
-			/* Search for a availible device starting at the last used device */
+			/* Search for a available device starting at the last used device */
 			for (i = 0, j = last_used + 1; i < c; i++, j++)
 			{
 				if (j == c)
@@ -1030,7 +1031,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 	{
 //		ast_mutex_lock(&state->round_robin_mtx);
 
-		/* Generate a list of all availible devices */
+		/* Generate a list of all available devices */
 		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
 		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
@@ -1056,7 +1057,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_unlock (&pvt->lock);
 		}
 
-		/* Search for a availible device starting at the last used device */
+		/* Search for a available device starting at the last used device */
 		for (i = 0, j = last_used + 1; i < c; i++, j++)
 		{
 			if (j == c)
@@ -1083,7 +1084,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 	{
 //		ast_mutex_lock(&state->round_robin_mtx);
 
-		/* Generate a list of all availible devices */
+		/* Generate a list of all available devices */
 		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
 		i = strlen (&resource[2]);
@@ -1111,7 +1112,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_unlock (&pvt->lock);
 		}
 
-		/* Search for a availible device starting at the last used device */
+		/* Search for a available device starting at the last used device */
 		for (i = 0, j = last_used + 1; i < c; i++, j++)
 		{
 			if (j == c)
