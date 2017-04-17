@@ -69,16 +69,16 @@ typedef struct pvt_stat
 {
 	uint32_t		at_tasks;			/*!< number of tasks added to queue */
 	uint32_t		at_cmds;			/*!< number of commands added to queue */
-	uint32_t		at_responces;			/*!< number of responses handled */
+	uint32_t		at_responses;			/*!< number of responses handled */
 
-	uint32_t		d_read_bytes;			/*!< number of bytes of commands actually readed from device */
+	uint32_t		d_read_bytes;			/*!< number of bytes of commands actually read from device */
 	uint32_t		d_write_bytes;			/*!< number of bytes of commands actually written to device */
 
-	uint64_t		a_read_bytes;			/*!< number of bytes of audio readed from device */
+	uint64_t		a_read_bytes;			/*!< number of bytes of audio read from device */
 	uint64_t		a_write_bytes;			/*!< number of bytes of audio written to device */
 
-	uint32_t		read_frames;			/*!< number of frames readed from device */
-	uint32_t		read_sframes;			/*!< number of truncated frames readed from device */
+	uint32_t		read_frames;			/*!< number of frames read from device */
+	uint32_t		read_sframes;			/*!< number of truncated frames read from device */
 
 	uint32_t		write_frames;			/*!< number of tries to frame write */
 	uint32_t		write_tframes;			/*!< number of truncated frames to write */
@@ -129,7 +129,7 @@ typedef struct pvt
 //	struct ringbuffer	a_write_rb;			/*!< audio ring buffer */
 
 //	char			a_read_buf[FRAME_SIZE + AST_FRIENDLY_OFFSET];	/*!< audio read buffer */
-//	struct ast_frame	a_read_frame;			/*!< readed frame buffer */
+//	struct ast_frame	a_read_frame;			/*!< read frame buffer */
 
 
 	char			dtmf_digit;			/*!< last DTMF digit */

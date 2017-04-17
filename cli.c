@@ -306,7 +306,7 @@ static char* cli_show_device_statistics (struct ast_cli_entry* e, int cmd, struc
 		ast_cli (a->fd, "  Device                      : %s\n", PVT_ID(pvt));
 		ast_cli (a->fd, "  Queue tasks                 : %u\n", PVT_STAT(pvt, at_tasks));
 		ast_cli (a->fd, "  Queue commands              : %u\n", PVT_STAT(pvt, at_cmds));
-		ast_cli (a->fd, "  Responses                   : %u\n", PVT_STAT(pvt, at_responces));
+		ast_cli (a->fd, "  Responses                   : %u\n", PVT_STAT(pvt, at_responses));
 		ast_cli (a->fd, "  Bytes of read responses     : %u\n", PVT_STAT(pvt, d_read_bytes));
 		ast_cli (a->fd, "  Bytes of written commands   : %u\n", PVT_STAT(pvt, d_write_bytes));
 		ast_cli (a->fd, "  Bytes of read audio         : %llu\n", (unsigned long long int)PVT_STAT(pvt, a_read_bytes));

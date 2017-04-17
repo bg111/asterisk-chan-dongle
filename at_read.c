@@ -48,7 +48,7 @@ EXPORT_DEF int at_wait (int fd, int* ms)
 	return outfd;
 }
 
-#/* return number of bytes readed */
+#/* return number of bytes read */
 EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 {
 	struct iovec	iov[2];

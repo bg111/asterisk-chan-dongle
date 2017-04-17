@@ -17,7 +17,7 @@
 typedef struct at_queue_cmd
 {
 	at_cmd_t		cmd;			/*!< command code */
-	at_res_t		res;			/*!< expected responce code, can be RES_OK, RES_CMGR, RES_SMS_PROMPT */
+	at_res_t		res;			/*!< expected response code, can be RES_OK, RES_CMGR, RES_SMS_PROMPT */
 
 	unsigned		flags;			/*!< flags */
 #define ATQ_CMD_FLAG_DEFAULT	0x00				/*!< empty flags */

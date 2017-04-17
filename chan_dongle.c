@@ -360,7 +360,7 @@ EXPORT_DEF void clean_read_data(const char * devname, int fd)
 	{
 		iovcnt = at_read (fd, devname, &rb);
 		ast_debug (4, "[%s] drop %u bytes of pending data before initialization\n", devname, (unsigned)rb_used(&rb));
-		/* drop readed */
+		/* drop read */
 		rb_init (&rb, buf, sizeof (buf));
 		if (iovcnt == 0)
 			break;
@@ -452,13 +452,16 @@ static void* do_monitor_phone (void* data)
 			break;
 		}
 
+		ast_mutex_lock (&pvt->lock);
 		PVT_STAT(pvt, d_read_bytes) += iovcnt;
+		ast_mutex_unlock (&pvt->lock);
+
 		while ((iovcnt = at_read_result_iov (dev, &read_result, &rb, iov)) > 0)
 		{
 			at_res = at_read_result_classification (&rb, iov[0].iov_len + iov[1].iov_len);
 
 			ast_mutex_lock (&pvt->lock);
-			PVT_STAT(pvt, at_responces) ++;
+			PVT_STAT(pvt, at_responses) ++;
 			if (at_response (pvt, iov, iovcnt, at_res) || at_queue_run(pvt))
 			{
 				goto e_cleanup;
