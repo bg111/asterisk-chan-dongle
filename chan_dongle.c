@@ -901,7 +901,6 @@ EXPORT_DEF struct pvt * find_device_ex(struct public_state * state, const char *
 			break;
 		}
 		ast_mutex_unlock (&pvt->lock);
-		pvt = NULL;
 	}
 	AST_RWLIST_UNLOCK(&state->devices);
 
