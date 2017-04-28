@@ -584,6 +584,8 @@ static int pvt_discovery(struct pvt * pvt)
 #/* */
 static void pvt_start(struct pvt * pvt)
 {
+	long flags;
+
 	/* prevent start_monitor() multiple times and on turned off devices */
 	if (pvt->connected || pvt->desired_state != DEV_STATE_STARTED) {
 		// || (pvt->monitor_thread != AST_PTHREADT_NULL &&
@@ -613,6 +615,16 @@ static void pvt_start(struct pvt * pvt)
 	if (!start_monitor(pvt)) {
 		goto cleanup_audiofd;
 	}
+
+	/* Set data_fd and audio_fd to non-blocking. This appears to fix
+	 * incidental deadlocks occurring with Asterisk 12+ or with
+	 * jitterbuffer enabled. Apparently Asterisk can call the
+	 * (audio) read function for sockets that don't have data to
+	 * read(). */
+	flags = fcntl(pvt->data_fd, F_GETFL);
+	fcntl(pvt->data_fd, F_SETFL, flags | O_NONBLOCK);
+	flags = fcntl(pvt->audio_fd, F_GETFL);
+	fcntl(pvt->audio_fd, F_SETFL, flags | O_NONBLOCK);
 
 	pvt->connected = 1;
 	pvt->current_state = DEV_STATE_STARTED;
