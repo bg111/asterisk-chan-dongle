@@ -585,35 +585,45 @@ static int pvt_discovery(struct pvt * pvt)
 static void pvt_start(struct pvt * pvt)
 {
 	/* prevent start_monitor() multiple times and on turned off devices */
-	if (!pvt->connected && pvt->desired_state == DEV_STATE_STARTED)
-//	&& (pvt->monitor_thread == AST_PTHREADT_NULL || (pthread_kill(pvt->monitor_thread, 0) != 0 && errno == ESRCH)))
-	{
-		pvt_stop(pvt);
-
-		if(pvt_discovery(pvt))
-			return;
-		ast_verb (3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
-
-		pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock);
-		if (pvt->data_fd >= 0)
-		{
-			// TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
-			pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock);
-			if (pvt->audio_fd >= 0)
-			{
-				if (start_monitor (pvt))
-				{
-					pvt->connected = 1;
-					pvt->current_state = DEV_STATE_STARTED;
-					manager_event_device_status(PVT_ID(pvt), "Connect");
-					ast_verb (3, "[%s] Dongle has connected, initializing...\n", PVT_ID(pvt));
-					return;
-				}
-				closetty(pvt->audio_fd, &pvt->alock);
-			}
-			closetty(pvt->data_fd, &pvt->dlock);
-		}
+	if (pvt->connected || pvt->desired_state != DEV_STATE_STARTED) {
+		// || (pvt->monitor_thread != AST_PTHREADT_NULL &&
+		//     (pthread_kill(pvt->monitor_thread, 0) == 0 || errno != ESRCH))
+		return;
 	}
+
+	pvt_stop(pvt);
+
+	if (pvt_discovery(pvt)) {
+		return;
+	}
+
+	ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
+
+	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock);
+	if (pvt->data_fd < 0) {
+		return;
+	}
+
+	// TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
+	pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock);
+	if (pvt->audio_fd < 0) {
+		goto cleanup_datafd;
+	}
+
+	if (!start_monitor(pvt)) {
+		goto cleanup_audiofd;
+	}
+
+	pvt->connected = 1;
+	pvt->current_state = DEV_STATE_STARTED;
+	manager_event_device_status(PVT_ID(pvt), "Connect");
+	ast_verb(3, "[%s] Dongle has connected, initializing...\n", PVT_ID(pvt));
+	return;
+
+cleanup_audiofd:
+	closetty(pvt->audio_fd, &pvt->alock);
+cleanup_datafd:
+	closetty(pvt->data_fd, &pvt->dlock);
 }
 
 #/* */
