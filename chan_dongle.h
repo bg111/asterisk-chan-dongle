@@ -217,8 +217,6 @@ typedef struct public_state
 	ast_mutex_t			discovery_lock;
 	pthread_t			discovery_thread;		/* The discovery thread handler */
 	volatile int			unloading_flag;			/* no need mutex or other locking for protect this variable because no concurent r/w and set non-0 atomically */
-//	ast_mutex_t			round_robin_mtx;
-//	struct pvt			* round_robin[MAXDONGLEDEVICES];	// TODO: remove and make local variable of find_device_by_resource_ex()
 	struct dc_gconfig		global_settings;
 } public_state_t;
 

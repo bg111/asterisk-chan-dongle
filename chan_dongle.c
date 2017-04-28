@@ -974,8 +974,6 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 		group = (int) strtol (&resource[1], (char**) NULL, 10);
 		if (errno != EINVAL)
 		{
-//			ast_mutex_lock(&state->round_robin_mtx);
-
 			/* Generate a list of all available devices */
 			j = ITEMS_OF (round_robin);
 			c = 0; last_used = 0;
@@ -1022,14 +1020,10 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				}
 				ast_mutex_unlock (&pvt->lock);
 			}
-
-//			ast_mutex_unlock(&state->round_robin_mtx);
 		}
 	}
 	else if (((resource[0] == 'p') || (resource[0] == 'P')) && resource[1] == ':')
 	{
-//		ast_mutex_lock(&state->round_robin_mtx);
-
 		/* Generate a list of all available devices */
 		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
@@ -1076,13 +1070,9 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			}
 			ast_mutex_unlock (&pvt->lock);
 		}
-
-//		ast_mutex_unlock(&state->round_robin_mtx);
 	}
 	else if (((resource[0] == 's') || (resource[0] == 'S')) && resource[1] == ':')
 	{
-//		ast_mutex_lock(&state->round_robin_mtx);
-
 		/* Generate a list of all available devices */
 		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
@@ -1131,8 +1121,6 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			}
 			ast_mutex_unlock (&pvt->lock);
 		}
-
-//		ast_mutex_unlock(&state->round_robin_mtx);
 	}
 	else if (((resource[0] == 'i') || (resource[0] == 'I')) && resource[1] == ':')
 	{
@@ -1650,7 +1638,6 @@ static int public_state_init(struct public_state * state)
 	ast_mutex_init(&state->discovery_lock);
 
 	state->discovery_thread = AST_PTHREADT_NULL;
-//	ast_mutex_init(&state->round_robin_mtx);
 
 	if(reload_config(state, 0, RESTATE_TIME_NOW, NULL) == 0)
 	{
@@ -1712,7 +1699,6 @@ static int public_state_init(struct public_state * state)
 		ast_log (LOG_ERROR, "Errors reading config file " CONFIG_FILE ", Not loading module\n");
 	}
 
-//	ast_mutex_destroy(&state->round_robin_mtx);
 	ast_mutex_destroy(&state->discovery_lock);
 	AST_RWLIST_HEAD_DESTROY(&state->devices);
 
@@ -1742,7 +1728,6 @@ static void public_state_fini(struct public_state * state)
 	discovery_stop(state);
 	devices_destroy(state);
 
-//	ast_mutex_destroy(&state->round_robin_mtx);
 	ast_mutex_destroy(&state->discovery_lock);
 	AST_RWLIST_HEAD_DESTROY(&state->devices);
 }
