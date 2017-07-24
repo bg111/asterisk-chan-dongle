@@ -212,7 +212,7 @@ EXPORT_DEF int opentty (const char* dev, char ** lockfile)
 		return -1;
 	}
 
-	fd = open (dev, O_RDWR | O_NOCTTY);
+	fd = open(dev, O_RDWR | O_NOCTTY);
 	if (fd < 0)
 	{
 		flags = errno;
@@ -222,9 +222,14 @@ EXPORT_DEF int opentty (const char* dev, char ** lockfile)
 		ast_log (LOG_WARNING, "unable to open %s: %s\n", dev, strerror(flags));
 		return -1;
 	}
+	/* Put the terminal into exclusive mode. All other open(2)s by
+	 * non-root will fail with EBUSY. */
+	if (ioctl(fd, TIOCEXCL) != 0) {
+		ast_log(LOG_WARNING, "ioctl(TIOCEXCL) failed for %s: %s\n", dev, strerror(errno));
+	}
 
 	flags = fcntl(fd, F_GETFD);
-	if(flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1)
+	if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1)
 	{
 		flags = errno;
 		closetty(fd, lockfile);
