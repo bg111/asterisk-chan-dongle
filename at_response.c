@@ -1170,8 +1170,10 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 	}
 	else
 	{
-		ast_log (LOG_ERROR, "[%s] Error parsing incoming sms message alert '%s', disconnecting\n", PVT_ID(pvt), str);
-		return -1;
+		/* Not sure why this happens, but we don't want to disconnect standing calls.
+		 * [Jun 14 19:57:57] ERROR[3056]: at_response.c:1173 at_response_cmti:
+		 *   [m1-1] Error parsing incoming sms message alert '+CMTI: "SM",-1' */
+		ast_log(LOG_WARNING, "[%s] Error parsing incoming sms message alert '%s', ignoring\n", PVT_ID(pvt), str);
 	}
 
 	return 0;
