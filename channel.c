@@ -539,8 +539,18 @@ again:
 	}
 }
 
+static inline void change_audio_endianness_to_le(
+		attribute_unused struct iovec *iov, attribute_unused int iovcnt)
+{
+#if __BYTE_ORDER == __BIG_ENDIAN
+	for (; iovcnt-- > 0; ++iov) {
+		ast_swapcopy_samples(iov->iov_base, iov->iov_base, iov->iov_len / 2);
+	}
+#endif
+}
+
 #/* */
-static void timing_write (struct pvt* pvt)
+static void timing_write(struct pvt* pvt)
 {
 	size_t			used;
 	int			iovcnt;
@@ -566,6 +576,7 @@ static void timing_write (struct pvt* pvt)
 			iovcnt = mixb_read_n_iov (&pvt->a_write_mixb, iov, FRAME_SIZE);
 			mixb_read_n_iov (&pvt->a_write_mixb, iov, FRAME_SIZE);
 			mixb_read_upd (&pvt->a_write_mixb, FRAME_SIZE);
+			change_audio_endianness_to_le(iov, iovcnt);
 		}
 		else if (used > 0)
 		{
@@ -579,6 +590,7 @@ static void timing_write (struct pvt* pvt)
 			iov[iovcnt].iov_base	= silence_frame;
 			iov[iovcnt].iov_len	= FRAME_SIZE - used;
 			iovcnt++;
+			change_audio_endianness_to_le(iov, iovcnt);
 		}
 		else
 		{
@@ -588,6 +600,7 @@ static void timing_write (struct pvt* pvt)
 			iov[0].iov_base		= silence_frame;
 			iov[0].iov_len		= FRAME_SIZE;
 			iovcnt			= 1;
+			// no need to change_audio_endianness_to_le for zeroes
 //			continue;
 		}
 
