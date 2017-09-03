@@ -13,6 +13,8 @@ env:
 # Extend build matrix
 matrix:
   include:
+    - env: ASTVER=15
+    - env: ASTVER=14
     - env: ASTVER=13
     - env: ASTVER=12
     - env: ASTVER=11
