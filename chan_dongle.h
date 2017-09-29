@@ -24,6 +24,7 @@
 #include "cpvt.h"				/* struct cpvt */
 #include "export.h"				/* EXPORT_DECL EXPORT_DEF */
 #include "dc_config.h"				/* pvt_config_t */
+#include "at_command.h"
 
 #define MODULE_DESCRIPTION	"Huawei 3G Dongle Channel Driver"
 #define MAXDONGLEDEVICES	128
@@ -162,6 +163,9 @@ typedef struct pvt
 	char			location_area_code[8];
 	char			cell_id[8];
 	char			sms_scenter[20];
+
+	unsigned int		incoming_sms_index;
+	unsigned int		incoming_sms_inbox[(SMS_INDEX_MAX + 31) / 32];
 
 	volatile unsigned int	connected:1;			/*!< do we have an connection to a device */
 	unsigned int		initialized:1;			/*!< whether a service level connection exists or not */

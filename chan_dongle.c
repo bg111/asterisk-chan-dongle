@@ -334,6 +334,7 @@ static void disconnect_dongle (struct pvt* pvt)
 	pvt->cwaiting = 0;
 	pvt->outgoing_sms = 0;
 	pvt->incoming_sms = 0;
+	pvt->incoming_sms_index = -1U;
 	pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
 
 	pvt->current_state = DEV_STATE_STOPPED;
@@ -408,6 +409,12 @@ static void* do_monitor_phone (void* data)
 	{
 		ast_log (LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
 		goto e_cleanup;
+	}
+
+	/* Poll first SMS, if any */
+	if (at_poll_sms(pvt) == 0)
+	{
+		ast_debug (1, "[%s] Polling first SMS message\n", PVT_ID(pvt));
 	}
 
 	ast_mutex_unlock (&pvt->lock);
@@ -1424,6 +1431,7 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 		pvt->timeout			= DATA_READ_TIMEOUT;
 		pvt->cusd_use_ucs2_decoding	=  1;
 		pvt->gsm_reg_status		= -1;
+		pvt->incoming_sms_index		= -1U;
 
 		ast_copy_string (pvt->provider_name, "NONE", sizeof (pvt->provider_name));
 		ast_copy_string (pvt->subscriber_number, "Unknown", sizeof (pvt->subscriber_number));
