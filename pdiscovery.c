@@ -400,7 +400,7 @@ static int pdiscovery_interfaces(const char * devname, const char * name, int le
 
 
 #/* */
-static const const struct pdiscovery_device * pdiscovery_lookup_ids(const char * devname, const char * name, int len)
+static const struct pdiscovery_device * pdiscovery_lookup_ids(const char * devname, const char * name, int len)
 {
 	unsigned vid;
 	unsigned pid;
@@ -495,7 +495,7 @@ static char * pdiscovery_handle_cimi(const char * devname, char * str)
 					ast_debug(4, "[%s discovery] found IMSI %s\n", devname, imsi);
 					return imsi;
 				}
-				// passthru
+				/* fall through */
 			default:
 				state = STATE_BEGIN;
 		}

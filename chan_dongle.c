@@ -684,8 +684,8 @@ static void * do_discovery(void * arg)
 				{
 					case DEV_STATE_RESTARTED:
 						pvt_stop(pvt);
-						/* passthru */
 						pvt->desired_state = DEV_STATE_STARTED;
+						/* fall through */
 					case DEV_STATE_STARTED:
 						pvt_start(pvt);
 						break;

@@ -206,10 +206,10 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_D:
 				pvt->dialing = 1;
-				if(task->cpvt != &pvt->sys_chan)
+				if (task->cpvt != &pvt->sys_chan) {
 					pvt->last_dialed_cpvt = task->cpvt;
-				/* passthrow */
-
+				}
+				/* fall through */
 			case CMD_AT_A:
 			case CMD_AT_CHLD_2x:
 /* not work, ^CONN: appear before OK for CHLD_ANSWER
@@ -459,9 +459,11 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CHLD_2:
-				if(!CPVT_TEST_FLAG(task->cpvt, CALL_FLAG_HOLD_OTHER) || task->cpvt->state != CALL_STATE_INIT)
+				if (!CPVT_TEST_FLAG(task->cpvt, CALL_FLAG_HOLD_OTHER) ||
+						task->cpvt->state != CALL_STATE_INIT) {
 					break;
-				/* passthru */
+				}
+				/* fall through */
 			case CMD_AT_D:
 				ast_log (LOG_ERROR, "[%s] Dial failed\n", PVT_ID(pvt));
 				queue_control_channel (task->cpvt, AST_CONTROL_CONGESTION);
