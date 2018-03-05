@@ -244,8 +244,8 @@ EXPORT_DEF int at_enque_pdu(struct cpvt * cpvt, const char * pdu, attribute_unus
 	char * ptr = (char *) pdu;
 	char buf[8+25+1];
 	at_queue_cmd_t at_cmd[] = {
-		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_2S, 0}  , NULL, 0 },
-		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_40S, 0} , NULL, 0 }
+		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0 },
+		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
 		};
 
 	size_t length = strlen(pdu);
@@ -299,8 +299,8 @@ EXPORT_DEF int at_enque_sms (struct cpvt* cpvt, const char* destination, const c
 	pvt_t* pvt = cpvt->pvt;
 
 	at_queue_cmd_t at_cmd[] = {
-		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_2S, 0}  , NULL, 0 },
-		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_40S, 0} , NULL, 0 }
+		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0 },
+		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
 		};
 
 	if(pvt->use_pdu)
@@ -493,10 +493,10 @@ EXPORT_DEF int at_enque_set_ccwa (struct cpvt* cpvt, attribute_unused const char
 	int err;
 	call_waiting_t value;
 	at_queue_cmd_t cmds[] = {
-		/* 5 seconds timeout */
-		ATQ_CMD_DECLARE_DYNIT(CMD_AT_CCWA_SET, ATQ_CMD_TIMEOUT_15S, 0),				/* Set Call-Waiting On/Off */
-		ATQ_CMD_DECLARE_STIT(CMD_AT_CCWA_STATUS, cmd_ccwa_get, ATQ_CMD_TIMEOUT_15S, 0),		/* Query CCWA Status for Voice Call  */
-
+		/* Set Call-Waiting On/Off */
+		ATQ_CMD_DECLARE_DYNIT(CMD_AT_CCWA_SET, ATQ_CMD_TIMEOUT_MEDIUM, 0),
+		/* Query CCWA Status for Voice Call  */
+		ATQ_CMD_DECLARE_STIT(CMD_AT_CCWA_STATUS, cmd_ccwa_get, ATQ_CMD_TIMEOUT_MEDIUM, 0),
 	};
 	at_queue_cmd_t * pcmd = cmds;
 	unsigned count = ITEMS_OF(cmds);
@@ -687,7 +687,7 @@ EXPORT_DEF int at_enque_flip_hold (struct cpvt* cpvt)
 EXPORT_DEF int at_enque_ping (struct cpvt * cpvt)
 {
 	static const at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_STIT(CMD_AT, cmd_at, ATQ_CMD_TIMEOUT_1S, 0),		/* 1 second timeout */
+		ATQ_CMD_DECLARE_STIT(CMD_AT, cmd_at, ATQ_CMD_TIMEOUT_SHORT, 0),
 		};
 
 	return at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 1);

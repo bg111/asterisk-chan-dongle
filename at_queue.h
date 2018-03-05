@@ -25,12 +25,9 @@ typedef struct at_queue_cmd
 #define ATQ_CMD_FLAG_IGNORE	0x02				/*!< ignore response non match condition */
 
 	struct timeval		timeout;		/*!< timeout value, started at time when command actually written on device */
-#define ATQ_CMD_TIMEOUT_1S	1				/*!< timeout value  1 sec */
-#define ATQ_CMD_TIMEOUT_2S	2				/*!< timeout value  2 sec */
-#define ATQ_CMD_TIMEOUT_5S	5				/*!< timeout value  5 sec */
-#define ATQ_CMD_TIMEOUT_10S	10				/*!< timeout value 10 sec */
-#define ATQ_CMD_TIMEOUT_15S	15				/*!< timeout value 15 ses */
-#define ATQ_CMD_TIMEOUT_40S	40				/*!< timeout value 40 ses */
+#define ATQ_CMD_TIMEOUT_SHORT	1		/*!< timeout value  1 sec */
+#define ATQ_CMD_TIMEOUT_MEDIUM	5		/*!< timeout value  5 sec */
+#define ATQ_CMD_TIMEOUT_LONG	40		/*!< timeout value 40 sec */
 
 	char*			data;			/*!< command and data to send in device */
 	unsigned		length;			/*!< data length */
@@ -41,7 +38,7 @@ typedef struct at_queue_cmd
 	(e).cmd = (icmd);				\
 	(e).res = RES_OK;				\
 	(e).flags = iflags | ATQ_CMD_FLAG_STATIC;	\
-	(e).timeout.tv_sec = ATQ_CMD_TIMEOUT_2S;	\
+	(e).timeout.tv_sec = ATQ_CMD_TIMEOUT_MEDIUM;	\
 	(e).timeout.tv_usec = 0;			\
 	(e).data = (char*)(idata);			\
 	(e).length = STRLEN(idata);			\
@@ -52,7 +49,7 @@ typedef struct at_queue_cmd
 	(e).cmd = (icmd);				\
 	(e).res = RES_OK;				\
 	(e).flags = iflags & ~ATQ_CMD_FLAG_STATIC;	\
-	(e).timeout.tv_sec = ATQ_CMD_TIMEOUT_2S;	\
+	(e).timeout.tv_sec = ATQ_CMD_TIMEOUT_MEDIUM;	\
 	(e).timeout.tv_usec = 0;			\
 	} while(0)
 #define ATQ_CMD_INIT_DYN(e,icmd)		ATQ_CMD_INIT_DYNF(e, icmd, ATQ_CMD_FLAG_DEFAULT)
@@ -60,15 +57,15 @@ typedef struct at_queue_cmd
 
 /* static initializers */
 #define ATQ_CMD_DECLARE_STFT(cmd,res,data,flags,s,u)	{ (cmd), (res), ATQ_CMD_FLAG_STATIC|flags, {(s), (u)}, (char*)(data), STRLEN(data) }
-#define ATQ_CMD_DECLARE_STF(cmd,res,data,flags)		ATQ_CMD_DECLARE_STFT(cmd,res,data,flags,ATQ_CMD_TIMEOUT_2S,0)
-//#define ATQ_CMD_DECLARE_STF(cmd,res,data,flags)	{ (cmd), (res), ATQ_CMD_FLAG_STATIC|flags, {ATQ_CMD_TIMEOUT_2S, 0}, (char*)(data), STRLEN(data) }
+#define ATQ_CMD_DECLARE_STF(cmd,res,data,flags)		ATQ_CMD_DECLARE_STFT(cmd, res, data, flags, ATQ_CMD_TIMEOUT_MEDIUM, 0)
+//#define ATQ_CMD_DECLARE_STF(cmd,res,data,flags)	{ (cmd), (res), ATQ_CMD_FLAG_STATIC|flags, {ATQ_CMD_TIMEOUT_MEDIUM, 0}, (char*)(data), STRLEN(data) }
 #define ATQ_CMD_DECLARE_ST(cmd,data)		ATQ_CMD_DECLARE_STF(cmd, RES_OK, data, ATQ_CMD_FLAG_DEFAULT)
 #define ATQ_CMD_DECLARE_STI(cmd,data)		ATQ_CMD_DECLARE_STF(cmd, RES_OK, data, ATQ_CMD_FLAG_IGNORE)
 #define ATQ_CMD_DECLARE_STIT(cmd,data,s,u)	ATQ_CMD_DECLARE_STFT(cmd, RES_OK, data, ATQ_CMD_FLAG_IGNORE,s,u)
 
 #define ATQ_CMD_DECLARE_DYNFT(cmd,res,flags,s,u) { (cmd), (res),  flags & ~ATQ_CMD_FLAG_STATIC, {(s), (u)}, 0,      0 }
-#define ATQ_CMD_DECLARE_DYNF(cmd,res,flags)	ATQ_CMD_DECLARE_DYNFT(cmd,res,flags,ATQ_CMD_TIMEOUT_2S,0)
-//#define ATQ_CMD_DECLARE_DYNF(cmd,res,flags)	{ (cmd), (res),  flags & ~ATQ_CMD_FLAG_STATIC, {ATQ_CMD_TIMEOUT_2S, 0}, 0,      0 }
+#define ATQ_CMD_DECLARE_DYNF(cmd,res,flags)	ATQ_CMD_DECLARE_DYNFT(cmd,res,flags,ATQ_CMD_TIMEOUT_MEDIUM, 0)
+//#define ATQ_CMD_DECLARE_DYNF(cmd,res,flags)	{ (cmd), (res),  flags & ~ATQ_CMD_FLAG_STATIC, {ATQ_CMD_TIMEOUT_MEDIUM, 0}, 0,      0 }
 #define ATQ_CMD_DECLARE_DYN(cmd)		ATQ_CMD_DECLARE_DYNF(cmd, RES_OK, ATQ_CMD_FLAG_DEFAULT)
 #define ATQ_CMD_DECLARE_DYNI(cmd)		ATQ_CMD_DECLARE_DYNF(cmd, RES_OK, ATQ_CMD_FLAG_IGNORE)
 #define ATQ_CMD_DECLARE_DYNIT(cmd,s,u)		ATQ_CMD_DECLARE_DYNFT(cmd, RES_OK, ATQ_CMD_FLAG_IGNORE,s,u)
