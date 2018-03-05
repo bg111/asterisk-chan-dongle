@@ -52,7 +52,15 @@ all: @TARGET@
 
 install: all
 	$(STRIP) $(PROJM)
-	$(INSTALL) -m 755 $(PROJM) @DESTDIR@
+ifneq (@DESTDIR@,)
+	$(INSTALL) -m 644 $(PROJM) @DESTDIR@
+else
+	@echo >&2
+	@echo "*** Asterisk modules directory was not auto-detected." >&2
+	@echo "*** Please copy $(PROJM) to the appropriate modules directory yourself." >&2
+	@echo >&2
+	@false
+endif
 
 $(PROJM): $(chan_donglem_so_OBJS) Makefile
 	$(LD) $(LDFLAGS) $(SOLINK) -o $@ $(chan_donglem_so_OBJS) $(LIBS)

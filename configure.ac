@@ -83,6 +83,7 @@ dnl Checks for header files.
 AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/time.h termios.h])
 AC_DEFUN([AC_HEADER_FIND], [
     file=$1
+    found=no
     for path in $2 ; do
 	AC_MSG_CHECKING([whether $file in $path])
 	if test -f $path/$file ; then
@@ -91,11 +92,10 @@ AC_DEFUN([AC_HEADER_FIND], [
 	    AC_MSG_RESULT([yes])
 	    AC_CHECK_HEADER([$file])
 	    break;
-	else
-	    AC_MSG_RESULT([no])
 	fi
+	AC_MSG_RESULT([no])
     done
-    if test -z "$found" ; then
+    if test "$found" = "no"; then
 	AC_MSG_ERROR([Can't find "$file"])
     fi
     ]
@@ -183,6 +183,7 @@ AC_CC_OPT([-MD -MT conftest.o -MF /dev/null -MP],[-MD -MT \$@ -MF .\$(subst /,_,
 
 AC_DEFUN([AC_CHECK_DESTDIR], [
     if test -z "$DESTDIR" ; then
+	found=no
 	for path in $1 ; do
 	    AC_MSG_CHECKING([whether DESTDIR is $path])
 	    if test -f $path/pbx_config.so ; then
@@ -190,17 +191,21 @@ AC_DEFUN([AC_CHECK_DESTDIR], [
 		found="yes"
 		DESTDIR=$path
 		break;
-	    else
-		AC_MSG_RESULT([no])
 	    fi
+	    AC_MSG_RESULT([no])
 	done
-	if test -z "$found" ; then
-	    AC_MSG_ERROR(DESTDIR is unknown, please explicite set like DESTDIR=/usr/lib/asterisk/modules ./configure)
+	if test "$found" = "no"; then
+	    AC_MSG_ERROR([DESTDIR is unknown, please be explicit: ./configure DESTDIR=/usr/lib/asterisk/modules])
 	fi
     fi
     ])
 
-AC_CHECK_DESTDIR([/usr/lib/asterisk/modules /usr/local/lib/asterisk/modules /opt/local/lib/asterisk/modules])
+dnl This detection is kind of flaky. Don't rely on it. The module
+dnl directory could be lib64 or x86_64-linux-gnu or even somewhere
+dnl completely custom.
+AC_CHECK_DESTDIR([ \
+    /usr/lib/asterisk/modules /usr/lib64/asterisk/modules \
+    /usr/local/lib/asterisk/modules /opt/local/lib/asterisk/modules])
 
 dnl Checks for library functions.
 AC_FUNC_MEMCMP

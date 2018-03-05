@@ -5,4 +5,4 @@ autoconf
 
 # We don't use Makefile.am, but we *do* use automake to add
 # "missing" files used by configure.
-automake -a 2>&1 | grep -vF Makefile.am
+automake -a 2>&1 | grep -vF Makefile.am; true
