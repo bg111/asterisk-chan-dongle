@@ -29,7 +29,7 @@ before_script:
   - aclocal
   - autoconf
   - automake -a || true  # do install stuff, don't create makefile
-  - ./configure --with-astversion=$ASTVER --with-asterisk=./asterisk-$ASTVER/include
+  - ./configure --with-astversion=$ASTVER --with-asterisk=./asterisk-$ASTVER/include DESTDIR=/tmp
 
 script:
   - make clean all

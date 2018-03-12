@@ -9,6 +9,14 @@
 int ok = 0;
 int faults = 0;
 
+/* We call ast_log from pdu.c, so we'll fake an implementation here. */
+void ast_log(int level, const char* fmt, ...)
+{
+    /* Silence compiler warnings */
+    (void)level;
+    (void)fmt;
+}
+
 #/* */
 void test_parse_cnum()
 {
