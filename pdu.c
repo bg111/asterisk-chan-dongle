@@ -761,9 +761,24 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 		return "Can't parse PID";
 	}
 
-	/* TODO: support other types of messages */
 	if (pid != PDU_PID_SMS && !(0x41 <= pid && pid <= 0x47) /* PDU_PID_SMS_REPLACE_MASK */) {
-		return "Unhandled PID value, only SMS supported";
+		/* 3GPP TSS 23.040 v14.0.0 (2017-013) */
+		/* """The MS (Mobile Station, _we_) shall interpret
+		 * reserved, obsolete, or unsupported values as the
+		 * value 00000000 but shall store them exactly as
+		 * received.""" */
+		/* Lots of small variations in interpretations, but none
+		 * really useful to us. We'll just go with accepting
+		 * everything. */
+		/* A handfull from the list: */
+		/* 0x20..0x3E: different "telematic" devices */
+		/* 0x32: e-mail */
+		/* 0x38..0x3E: various Service Center specific codes */
+		/* 0x3F: gsm/umts station */
+		/* 0x40: silent sms; ME should ack but not tell the user */
+		/* 0x41..0x47: sms updates (replacing the previous sms #N) */
+		ast_log(LOG_NOTICE, "Treating TP-PID value 0x%hhx as regular SMS\n",
+			(unsigned char)pid);
 	}
 
 	dcs = pdu_parse_byte(pdu, &pdu_length);
