@@ -784,18 +784,30 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 
 		switch (dcs_hi) {
 		case 0x0: /* HIGH 0000: Regular message */
+		case 0x1: /* HIGH 0001: Regular message with class */
+		case 0x4: /* HIGH 0100: Marked for self-destruct */
+		case 0x5: /* HIGH 0101: Marked for self-destruct with class */
 		case 0xF: /* HIGH 1111: Data coding/message class */
-			/* apparently bits 0..3 are not reserved anymore:
+			/* Apparently bits 0..3 are not reserved anymore:
 			 * bits 3..2: {7bit, 8bit, ucs2, undef} */
 			alphabet = PDU_DCS_ALPHABET(dcs);
+			/* Bits 3..2 set to 11 is reserved, but
+			 * according to 3GPP TS 23.038 v14.0.0 (2017-03)
+			 * for HIGH 1111 bit 3 (regardless of bit 2) is
+			 * reserved. */
 			if (alphabet == PDU_DCS_ALPHABET_MASK) {
 				reserved = 1;
 			}
-			/* if 0xF then (dsc_lo & 3): {
+			/* if 0x1 || 0xF then (dsc_lo & 3): {
 			 *     class0, class1-ME-specific,
 			 *     class2-SIM-specific,
-			 *     class3-TE-specific (GSM TS 07.05)} */
+			 *     class3-TE-specific (3GPP TS 27.005)} */
 			break;
+		case 0x2: /* HIGH 0010: Compressed regular message */
+		case 0x3: /* HIGH 0011: Compressed regular with class */
+		case 0x6: /* HIGH 0110: Compressed, marked for self-destruct */
+		case 0x7: /* HIGH 0111: Compressed, marked for self-destruct with class */
+			return "Compression not implemented";
 		case 0xC: /* HIGH 1100: "Discard" MWI */
 		case 0xD: /* HIGH 1101: "Store" MWI */
 			/* if 0xC then the recipient may discard message
