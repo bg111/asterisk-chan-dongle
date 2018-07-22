@@ -211,6 +211,9 @@
 #define NUMBER_TYPE_INTERNATIONAL	(TP_A_EXT_NOEXT | TP_A_TON_INTERNATIONAL | TP_A_NPI_TEL_E164_E163) /* 0x91 */
 #define NUMBER_TYPE_NATIONAL		(TP_A_EXT_NOEXT | TP_A_TON_SUBSCRIBERNUM | TP_A_NPI_NATIONALNUM) /* 0xC8 */
 #define NUMBER_TYPE_ALPHANUMERIC	(TP_A_EXT_NOEXT | TP_A_TON_ALPHANUMERIC | TP_A_NPI_UNKNOWN) /* 0xD0 */
+/* maybe NUMBER_TYPE_NETWORKSHORT should be 0xB1 ??? */
+#define NUMBER_TYPE_NETWORKSHORT	(TP_A_EXT_NOEXT | TP_A_TON_NETSPECIFIC | TP_A_NPI_PRIVATENUM) /* 0xB9 */
+#define NUMBER_TYPE_UNKNOWN		(TP_A_EXT_NOEXT | TP_A_TON_UNKNOWN | TP_A_NPI_TEL_E164_E163) /* 0x81 */
 
 /* Message Type Indicator Parameter */
 #define PDUTYPE_MTI_SHIFT			0
@@ -666,7 +669,16 @@ EXPORT_DEF int pdu_build16(char* buffer, size_t length, const char* sca, const c
 		sca++;
 
 	if(dst[0] == '+')
+	{
 		dst++;
+	}
+	else
+	{
+		if(strlen(dst) < 6)
+			dst_toa=NUMBER_TYPE_NETWORKSHORT; //0xB9
+		else
+			dst_toa=NUMBER_TYPE_UNKNOWN; //0X81
+	}
 
 	/* count length of strings */
 	sca_len = strlen(sca);
