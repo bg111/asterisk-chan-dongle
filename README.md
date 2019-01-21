@@ -205,7 +205,7 @@ The Gosub will be executed for each destination channel."
 
     [from-sip]
     ; This will be executed by an inbound SIP channel ( call initiated on the SIP side )
-    exten => _[+0-9].,1,Set(JITTERBUFFER(adaptive)=default)
+    exten => _[+0-9].,1,Set(JITTERBUFFER(adaptive)=2000,1600,120)
     same => n,Set(AGC(rx)=4000)
     same => n,Dial(Dongle/i:${IMEI_OF_MY_DONGLE}/${NUMBER_OF_BOB}) 
 
