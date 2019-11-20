@@ -1222,8 +1222,13 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 	//ast_string_field_set (channel, language, CONF_SHARED(pvt, language);
 #endif /* ^11- */
 
-	for(idx = 0; idx < ITEMS_OF(dev_vars); ++idx)
-		pbx_builtin_setvar_helper (channel, dev_vars[idx].name, dev_vars[idx].value);
+	for (idx = 0; idx < ITEMS_OF(dev_vars); ++idx) {
+		ast_debug(1, "[%s] Setting chanvar %s = %s\n",
+			PVT_ID(pvt),
+			(dev_vars[idx].name ? dev_vars[idx].name : "(null)"),
+			(dev_vars[idx].value ? dev_vars[idx].value : "(null)"));
+		pbx_builtin_setvar_helper(channel, dev_vars[idx].name, dev_vars[idx].value);
+	}
 }
 
 /* NOTE: called from device and current levels with locked pvt */
