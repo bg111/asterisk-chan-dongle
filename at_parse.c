@@ -103,6 +103,20 @@ EXPORT_DEF char* at_parse_cops (char* str)
 		if(marks[3][-1] == '"')
 			marks[3]--;
 		marks[3][0] = 0;
+		/* Sometimes there is trailing garbage here;
+		 * e.g. "Tele2@" or "Tele2<U+FFFD>" instead of "Tele2".
+		 * Unsure why it happens (provider? dongle?), but it causes
+		 * trouble later on too (at pbx_builtin_setvar_helper which
+		 * is not encoding agnostic anymore, now that it uses json
+		 * for messaging). See wdoekes/asterisk-chan-dongle
+		 * GitHub issues #39 and #69. */
+		while (marks[3] > marks[2] && (
+				(unsigned char)marks[3][-1] < 32 ||
+				(unsigned char)marks[3][-1] == '@' ||
+				(unsigned char)marks[3][-1] >= 128)) {
+			marks[3]--;
+			marks[3][0] = 0;
+		}
 		return marks[2];
 	}
 
