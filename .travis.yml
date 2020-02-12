@@ -20,7 +20,7 @@ matrix:
     #- env: ASTVER=12
     - env: ASTVER=11
     #- env: ASTVER=10
-    - env: ASTVER=1.8
+    #- env: ASTVER=1.8
 
 before_install:
   - wget http://junk.devs.nu/a/asterisk/asterisk-$ASTVER-include.tar.bz2
