@@ -246,23 +246,6 @@ static ssize_t char_to_hexstr_7bit_pad_6(const char* in, size_t in_length, char*
 	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 6);
 }
 
-/* GSM 03.38 7bit alphabet */
-static const char *const alphabet_7bit[128] = {
-	"@", "£", "$", "¥", "è", "é", "ù", "ì", "ò", "Ç", "\n", "Ø",
-	"ø", "\r", "Å", "å", "∆", "_", "Φ", "Γ", "Λ", "Ω", "Π", "Ψ",
-	"Σ", "Θ", "Ξ", "\x1b" /* ESC */, "Æ", "æ", "ß", "É", " ", "!",
-	"\"", "#", "¤", "%", "&", "'", "(", ")", "*", "+", ",", "-",
-	".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-	":", ";", "<", "=", ">", "?", "¡", "A", "B", "C", "D", "E",
-	"F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q",
-	"R", "S", "T", "U", "V", "W", "X", "Y", "Z", "Ä", "Ö", "Ñ",
-	"Ü", "§", "¿", "a", "b", "c", "d", "e", "f", "g", "h", "i",
-	"j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u",
-	"v", "w", "x", "y", "z", "ä", "ö", "ñ", "ü", "à"
-	/* TODO: ESC could unlock the basic charset extension,
-	 * interpeting the following char differently. */
-};
-
 static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char* out,
 		size_t out_size, unsigned in_padding)
 {
@@ -298,6 +281,8 @@ static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char
 	memset(buf, 0, sizeof(buf));
 
 	/* parse the hexstring */
+	int esc = 0;
+	int ss = 0, ls = 0;
 	for (x = i = 0; i != in_length; i++) {
 		if (x >= out_size)
 			return -1;
@@ -311,10 +296,14 @@ static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char
 			in_padding -= 7;
 			value >>= 7;
 			{
-				const char *val = alphabet_7bit[value & 0x7F];
-				do {
-					out[x++] = *val++;
-				} while (*val && x < out_size);
+				const char *val = (esc ? LUT_GSM7_SS : LUT_GSM7_LS)[esc ? ss : ls][value & 0x7F];
+				if (val[0] == '\x1b' && !val[1]) {
+					esc = 1;
+				} else {
+					do {
+						out[x++] = *val++;
+					} while (*val && x < out_size);
+				}
 			}
 		}
 	}
