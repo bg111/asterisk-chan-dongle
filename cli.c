@@ -144,7 +144,6 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Auto delete SMS         : %s\n", CONF_SHARED(pvt, autodeletesms) ? "Yes" : "No");
 		ast_cli (a->fd, "  Disable SMS             : %s\n", CONF_SHARED(pvt, disablesms) ? "Yes" : "No");
 		ast_cli (a->fd, "  Reset Dongle            : %s\n", CONF_SHARED(pvt, resetdongle) ? "Yes" : "No");
-		ast_cli (a->fd, "  SMS PDU                 : %s\n", CONF_SHARED(pvt, smsaspdu) ? "Yes" : "No");
 		ast_cli (a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
 		ast_cli (a->fd, "  DTMF                    : %s\n", dc_dtmf_setting2str(CONF_SHARED(pvt, dtmf)));
 		ast_cli (a->fd, "  Minimal DTMF Gap        : %d\n", CONF_SHARED(pvt, mindtmfgap));
@@ -489,7 +488,7 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		return CLI_SHOWUSAGE;
 	}
 
-	buf = ast_str_create (256);
+	buf = ast_str_create (160 * 255);
 	for (i = 4; i < a->argc; i++)
 	{
 		if (i < (a->argc - 1))
@@ -502,7 +501,7 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		}
 	}
 
-	msg = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, 0, &status, &msgid);
+	msg = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, "1", &status, &msgid);
 	ast_free (buf);
 
 	if(status)

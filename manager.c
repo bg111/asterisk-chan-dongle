@@ -63,7 +63,6 @@ static int manager_show_devices (struct mansession* s, const struct message* m)
 			astman_append (s, "AutoDeleteSMS: %s\r\n", CONF_SHARED(pvt, autodeletesms) ? "Yes" : "No");
 			astman_append (s, "DisableSMS: %s\r\n", CONF_SHARED(pvt, disablesms) ? "Yes" : "No");
 			astman_append (s, "ResetDongle: %s\r\n", CONF_SHARED(pvt, resetdongle) ? "Yes" : "No");
-			astman_append (s, "SMSPDU: %s\r\n", CONF_SHARED(pvt, smsaspdu) ? "Yes" : "No");
 			astman_append (s, "CallWaitingSetting: %s\r\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
 			astman_append (s, "DTMF: %s\r\n", dc_dtmf_setting2str(CONF_SHARED(pvt, dtmf)));
 			astman_append (s, "MinimalDTMFGap: %d\r\n", CONF_SHARED(pvt, mindtmfgap));

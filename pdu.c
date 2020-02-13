@@ -1,5 +1,6 @@
 /*
    Copyright (C) 2010 bg <bg_one@mail.ru>
+   Copyright (C) 2020 Max von Buelow <max@m9x.de>
 */
 #include "ast_config.h"
 
@@ -8,6 +9,7 @@
 #include "pdu.h"
 #include "helpers.h"			/* dial_digit_code() */
 #include "char_conv.h"			/* utf8_to_hexstr_ucs2() */
+#include "gsm7_luts.h"
 
 /* SMS-SUBMIT format
 	SCA		1..12 octet(s)		Service Center Address information element
@@ -267,44 +269,57 @@
 #define PDU_DCS_ALPHABET(dcs)			((dcs) & PDU_DCS_ALPHABET_MASK)
 
 #define ROUND_UP2(x)				(((x) + 1) & (0xFFFFFFFF << 1))
-#define LENGTH2OCTETS(x)			(((x) + 1)/2)
+#define DIV2UP(x)			(((x) + 1)/2)
+
+#define CSMS_GSM7_MAX_LEN 153
+#define SMS_GSM7_MAX_LEN 160
+#define CSMS_UCS2_MAX_LEN 66
+#define SMS_UCS2_MAX_LEN 70
+#define PDU_LENGTH 176
+
+EXPORT_DEF void pdu_udh_init(pdu_udh_t *udh)
+{
+	udh->ref = 0;
+	udh->parts = 1;
+	udh->ss = 0;
+	udh->ls = 0;
+}
 
 #/* get digit code, 0 if invalid  */
 EXPORT_DEF char pdu_digit2code(char digit)
 {
-	switch(digit)
-	{
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			break;
-		case '*':
-			digit = 'A';
-			break;
-		case '#':
-			digit = 'B';
-			break;
-		case 'a':
-		case 'A':
-			digit = 'C';
-			break;
-		case 'b':
-		case 'B':
-			digit = 'D';
-			break;
-		case 'c':
-		case 'C':
-			digit = 'E';
-			break;
-		default:
-			return 0;
+	switch(digit) {
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+		break;
+	case '*':
+		digit = 'A';
+		break;
+	case '#':
+		digit = 'B';
+		break;
+	case 'a':
+	case 'A':
+		digit = 'C';
+		break;
+	case 'b':
+	case 'B':
+		digit = 'D';
+		break;
+	case 'c':
+	case 'C':
+		digit = 'E';
+		break;
+	default:
+		return 0;
 	}
 	return digit;
 }
@@ -312,45 +327,44 @@ EXPORT_DEF char pdu_digit2code(char digit)
 #/* */
 static char pdu_code2digit(char code)
 {
-	switch(code)
-	{
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			break;
-		case 'a':
-		case 'A':
-			code = '*';
-			break;
-		case 'b':
-		case 'B':
-			code = '#';
-			break;
-		case 'c':
-		case 'C':
-			code = 'A';
-			break;
-		case 'd':
-		case 'D':
-			code = 'B';
-			break;
-		case 'e':
-		case 'E':
-			code = 'C';
-			break;
-		case 'f':
-		case 'F':
-			code = 0;
-			break;
-		default:
-			return -1;
+	switch(code) {
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+		break;
+	case 'a':
+	case 'A':
+		code = '*';
+		break;
+	case 'b':
+	case 'B':
+		code = '#';
+		break;
+	case 'c':
+	case 'C':
+		code = 'A';
+		break;
+	case 'd':
+	case 'D':
+		code = 'B';
+		break;
+	case 'e':
+	case 'E':
+		code = 'C';
+		break;
+	case 'f':
+	case 'F':
+		code = 0;
+		break;
+	default:
+		return -1;
 	}
 	return code;
 }
@@ -525,55 +539,129 @@ static int pdu_parse_timestamp(char ** pdu, size_t * length)
 	return -EINVAL;
 }
 
-#/* TODO: remove / TODO: append 8 bit */
-static int check_encoding(const char* msg, unsigned length)
+EXPORT_DEF int pdu_build_mult(int (*cb)(const char *buf, unsigned len, void *s), const char* sca, const char* dst, const char* msg, unsigned valid_minutes, int srr, unsigned csmsref, void *s)
 {
-	str_encoding_t possible_enc = get_encoding(RECODE_ENCODE, msg, length);
-	if(possible_enc == STR_ENCODING_7BIT_HEX_PAD_0)
-		return PDU_DCS_ALPHABET_7BIT;
-	return PDU_DCS_ALPHABET_UCS2;
+	unsigned length = 2048;
+	char buffer[length];
+	unsigned msg_len, utf16_len;
+
+	msg_len = strlen(msg);
+	utf16_len = msg_len * 2 + 4;
+	uint16_t msg_utf16[utf16_len]; // TODO: is this allowed on the stack? I'm a c++ guy...
+	utf16_len = convert_string(msg, msg_len, (char*)msg_utf16, utf16_len, "UTF-8", "UTF-16BE") / 2;
+	uint16_t msg_gsm7[utf16_len * 2];
+
+	// TODO: Check for other tables
+	int is_gsm7 = 1;
+	unsigned gsm7_len = 0;
+	const uint8_t *escenc = get_char_gsm7_encoding(0x1B00);
+	for (unsigned i = 0; i < utf16_len; ++i) {
+		const uint8_t *enc = get_char_gsm7_encoding(msg_utf16[i]);
+		uint8_t c = enc[0];
+		if (c == GSM7_INVALID) {
+			is_gsm7 = 0;
+			break;
+		}
+		if (c > 127) {
+			gsm7_len += 2;
+			msg_gsm7[i] = escenc[0] << 8 | (c - 128);
+		} else {
+			++gsm7_len;
+			msg_gsm7[i] = c;
+		}
+	}
+	msg_gsm7[gsm7_len] = '\0';
+
+	unsigned split = 0;
+	unsigned cnt = 0, cur = 1, off = 0;
+	int res;
+	if (is_gsm7) {
+		if (gsm7_len > SMS_GSM7_MAX_LEN) {
+			split = CSMS_GSM7_MAX_LEN;
+		} else {
+			split = SMS_GSM7_MAX_LEN;
+		}
+		while (off < utf16_len) {
+			unsigned septets = 0, n;
+			for (n = 0; off + n < utf16_len; ++n) {
+				unsigned req = msg_gsm7[off + n] > 255 ? 2 : 1;
+				if (septets + req >= split) break;
+				septets += req;
+			}
+			++cnt;
+			off += n;
+		}
+		if (cnt > 255) {
+			cnt = -E2BIG;
+			goto CLEAN;
+		}
+		off = 0;
+		while (off < utf16_len) {
+			unsigned septets = 0, n;
+			for (n = 0; off + n < utf16_len; ++n) {
+				unsigned req = msg_gsm7[off + n] > 255 ? 2 : 1;
+				if (septets + req >= split) break;
+				septets += req;
+			}
+			pdu_udh_t udh;
+			udh.ref = csmsref;
+			udh.order = cur++;
+			udh.parts = cnt;
+			unsigned curlen = pdu_build16(buffer, length, sca, dst, PDU_DCS_ALPHABET_7BIT, msg_gsm7 + off, n, septets, valid_minutes, srr, &udh);
+			res = cb(buffer, curlen, s);
+			if (res < 0) {
+				cnt = res;
+				goto CLEAN;
+			}
+			off += n;
+		}
+	} else {
+		if (utf16_len > SMS_UCS2_MAX_LEN) {
+			split = CSMS_UCS2_MAX_LEN;
+		} else {
+			split = SMS_UCS2_MAX_LEN;
+		}
+		cnt = (utf16_len + split - 1) / split;
+		if (cnt > 255) {
+			cnt = -E2BIG;
+			goto CLEAN;
+		}
+		while (off < utf16_len) {
+			unsigned r = utf16_len - off;
+			unsigned n = r < split ? r : split;
+			pdu_udh_t udh;
+			udh.ref = csmsref;
+			udh.order = cur++;
+			udh.parts = cnt;
+			unsigned curlen = pdu_build16(buffer, length, sca, dst, PDU_DCS_ALPHABET_UCS2, msg_utf16 + off, n, n * 2, valid_minutes, srr, &udh);
+			res = cb(buffer, curlen, s);
+			if (res < 0) {
+				cnt = res;
+				goto CLEAN;
+			}
+			off += n;
+		}
+	}
+
+CLEAN:
+	return 0;
 }
 
-/*!
- * \brief Build PDU text for SMS
- * \param buffer -- pointer to place where PDU will be stored
- * \param length -- length of buffer
- * \param sca -- number of SMS center may be with leading '+' in International format
- * \param dst -- destination number for SMS may be with leading '+' in International format
- * \param msg -- SMS message in utf-8
- * \param valid_minutes -- Validity period
- * \param srr -- Status Report Request
- * \param sca_len -- pointer where length of SCA header (in bytes) will be stored
- * \return number of bytes written to buffer w/o trailing 0x1A or 0, -ENOMEM if buffer too short, -EINVAL on iconv recode errors, -E2BIG if message too long
- */
-#/* */
-EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const char* dst, const char* msg, unsigned valid_minutes, int srr)
+
+EXPORT_DEF int pdu_build16(char* buffer, size_t length, const char* sca, const char* dst, int dcs, const uint16_t* msg, unsigned msg_len, unsigned msg_bytes, unsigned valid_minutes, int srr, const pdu_udh_t *udh)
 {
-	char tmp;
 	int len = 0;
 	int data_len;
 
 	int sca_toa = NUMBER_TYPE_INTERNATIONAL;
 	int dst_toa = NUMBER_TYPE_INTERNATIONAL;
 	int pdutype = PDUTYPE_MTI_SMS_SUBMIT | PDUTYPE_RD_ACCEPT | PDUTYPE_VPF_RELATIVE | PDUTYPE_SRR_NOT_REQUESTED | PDUTYPE_UDHI_NO_HEADER | PDUTYPE_RP_IS_NOT_SET;
-	int dcs;
+	int use_udh = udh->parts > 1;
+	if (use_udh) pdutype |= PDUTYPE_UDHI_HAS_HEADER;
 
 	unsigned dst_len;
 	unsigned sca_len;
-	unsigned msg_len;
 
-	/* detect msg encoding and use 7Bit or UCS-2, not use 8Bit */
-	msg_len = strlen(msg);
-	dcs = check_encoding(msg, msg_len);
-
-	/* cannot exceed 140 octets for not compressed or cannot exceed 160 septets for compressed */
-#if 0
-	if (((PDU_DCS_ALPHABET(dcs) == PDU_DCS_ALPHABET_UCS2) && msg_len > 70) ||
-			(PDU_DCS_ALPHABET(dcs) == PDU_DCS_ALPHABET_8BIT && msg_len > 140) ||
-			msg_len > 160) {
-		return -E2BIG;
-	}
-#endif
 	if(sca[0] == '+')
 		sca++;
 
@@ -584,16 +672,12 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const cha
 	sca_len = strlen(sca);
 	dst_len = strlen(dst);
 
-	/* check buffer has enougth space */
-	if(length < ((sca_len == 0 ? 2 : 4 + ROUND_UP2(sca_len)) + 8 + ROUND_UP2(dst_len) + 8 + msg_len * 4 + 4))
-		return -ENOMEM;
-
 	/* SCA Length */
 	/* Type-of-address of the SMSC */
 	/* Address of SMSC */
 	if(sca_len)
 	{
-		len += snprintf(buffer + len, length - len, "%02X%02X", 1 + LENGTH2OCTETS(sca_len), sca_toa);
+		len += snprintf(buffer + len, length - len, "%02X%02X", 1 + DIV2UP(sca_len), sca_toa);
 		len += pdu_store_number(buffer + len, sca, sca_len);
 	}
 	else
@@ -615,11 +699,21 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const cha
 	/*  Destination address */
 	len += pdu_store_number(buffer + len, dst, dst_len);
 
-	/* forward TP-User-Data */
-	data_len = str_recode(
-		RECODE_ENCODE,
-		(dcs == PDU_DCS_ALPHABET_UCS2 ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT_HEX_PAD_0),
-		msg, msg_len, buffer + len + 8, length - len - 11);
+	/* TP-PID. Protocol identifier  */
+	/* TP-DCS. Data coding scheme */
+	/* TP-Validity-Period */
+	/* TP-User-Data-Length */
+// 	printf("%d\n\n", pdu_relative_validity(valid_minutes));
+	len += snprintf(buffer + len, length - len, "%02X%02X%02X%02X", PDU_PID_SMS, dcs, pdu_relative_validity(valid_minutes), msg_bytes + (!use_udh ? 0 : dcs == PDU_DCS_ALPHABET_UCS2 ? 7 : 8)); // UDH LEN
+
+	/* encode UDH */
+	if (use_udh) {
+		len += snprintf(buffer + len, length - len, "060804%04X%02X%02X", udh->ref, udh->parts, udh->order);
+		// 7 * 8 % 7 == 0 ==> No padding required for gsm 1
+	}
+
+	/* TP-User-Data */
+	data_len = str_encode16((dcs == PDU_DCS_ALPHABET_UCS2 ? STR_ENCODING_UCS2_HEX : STR_ENCODING_GSM7_HEX_PAD_0), msg, msg_len, buffer + len, length - len - 1); // TODO: y 3?
 	if(data_len < 0)
 	{
 		return -EINVAL;
@@ -629,22 +723,11 @@ EXPORT_DEF int pdu_build(char* buffer, size_t length, const char* sca, const cha
 		return -E2BIG;
 	}
 
-	/* calc UDL */
-	if(dcs == PDU_DCS_ALPHABET_UCS2)
-		msg_len = data_len / 2;
-
-	/* TP-PID. Protocol identifier  */
-	/* TP-DCS. Data coding scheme */
-	/* TP-Validity-Period */
-	/* TP-User-Data-Length */
-	tmp = buffer[len + 8];
-	len += snprintf(buffer + len, length - len, "%02X%02X%02X%02X", PDU_PID_SMS, dcs, pdu_relative_validity(valid_minutes), msg_len);
-	buffer[len] = tmp;
-
 	len += data_len;
+	buffer[len] = '\0';
 
-	/* also check message limit in 178 octets of TPDU (w/o SCA) */
-	if(len - sca_len > 178 * 2)
+	/* also check message limit in 178 octets of TPDU (w/o SCA) TODO: it's 176, isn't it? */
+	if(len - sca_len > PDU_LENGTH * 2)
 	{
 		return -E2BIG;
 	}
@@ -662,7 +745,7 @@ static str_encoding_t pdu_dcs_alphabet2encoding(int alphabet)
 	switch(alphabet)
 	{
 		case (PDU_DCS_ALPHABET_7BIT >> PDU_DCS_ALPHABET_SHIFT):
-			rv = STR_ENCODING_7BIT_HEX_PAD_0;
+			rv = STR_ENCODING_GSM7_HEX_PAD_0;
 			break;
 		case (PDU_DCS_ALPHABET_8BIT >> PDU_DCS_ALPHABET_SHIFT):
 			rv = STR_ENCODING_8BIT_HEX;
@@ -682,13 +765,14 @@ static str_encoding_t pdu_dcs_alphabet2encoding(int alphabet)
  * \return 0 on success
  */
 /* TODO: split long function */
-EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc)
+EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, size_t oa_len, str_encoding_t * oa_enc, char ** msg, str_encoding_t * msg_enc, pdu_udh_t *udh)
 {
 	size_t pdu_length = strlen(*pdu);
 	int field_len, pdu_type, oa_digits, oa_toa, pid, dcs, alphabet, ts, udl, udhl;
 
 	/* set msg as NULL until the end */
 	*msg = NULL;
+	udh->ref = -1;
 
 	/* decode SCA */
 	field_len = pdu_parse_sca(pdu, &pdu_length);
@@ -752,9 +836,9 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	}
 
 	pid = pdu_parse_byte(pdu, &pdu_length);
-	*oa_enc = STR_ENCODING_7BIT;
+	*oa_enc = STR_ENCODING_ASCII;
 	if ((oa_toa & TP_A_TON) == TP_A_TON_ALPHANUMERIC) {
-		*oa_enc = STR_ENCODING_7BIT_HEX_PAD_0;
+		*oa_enc = STR_ENCODING_GSM7_HEX_PAD_0;
 	}
 
 	if (pid < 0) {
@@ -877,25 +961,25 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	}
 
 	/* adjust 7-bit padding */
-	if (*msg_enc == STR_ENCODING_7BIT_HEX_PAD_0) {
+	if (*msg_enc == STR_ENCODING_GSM7_HEX_PAD_0) {
 		switch (6 - (udhl % 7)) {
 		case 1:
-			*msg_enc = STR_ENCODING_7BIT_HEX_PAD_1;
+			*msg_enc = STR_ENCODING_GSM7_HEX_PAD_1;
 			break;
 		case 2:
-			*msg_enc = STR_ENCODING_7BIT_HEX_PAD_2;
+			*msg_enc = STR_ENCODING_GSM7_HEX_PAD_2;
 			break;
 		case 3:
-			*msg_enc = STR_ENCODING_7BIT_HEX_PAD_3;
+			*msg_enc = STR_ENCODING_GSM7_HEX_PAD_3;
 			break;
 		case 4:
-			*msg_enc = STR_ENCODING_7BIT_HEX_PAD_4;
+			*msg_enc = STR_ENCODING_GSM7_HEX_PAD_4;
 			break;
 		case 5:
-			*msg_enc = STR_ENCODING_7BIT_HEX_PAD_5;
+			*msg_enc = STR_ENCODING_GSM7_HEX_PAD_5;
 			break;
 		case 6:
-			*msg_enc = STR_ENCODING_7BIT_HEX_PAD_6;
+			*msg_enc = STR_ENCODING_GSM7_HEX_PAD_6;
 			break;
 		default:
 			/* no change */
@@ -909,11 +993,10 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	}
 
 	while (udhl >= 2) {
-		int iei_len;
+		int iei_type, iei_len;
 
 		/* get type byte */
-		(void)pdu_parse_byte(pdu, &pdu_length); /* iei_type */
-		
+		iei_type = pdu_parse_byte(pdu, &pdu_length);
 
 		/* get length byte */
 		iei_len = pdu_parse_byte(pdu, &pdu_length);
@@ -923,10 +1006,35 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 
 		/* skip data, if any */
 		if (iei_len >= 0 && iei_len <= udhl) {
-			/* skip rest of IEI */
-			*pdu += iei_len * 2;
-			pdu_length -= iei_len * 2;
-			udhl -= iei_len;
+			switch (iei_type) {
+			case 0x00: /* Concatenated */
+				if (iei_len != 3) return "Invalid IEI len for concatenated SMS";
+				udh->ref = pdu_parse_byte(pdu, &pdu_length);
+				udh->parts = pdu_parse_byte(pdu, &pdu_length);
+				udh->order = pdu_parse_byte(pdu, &pdu_length);
+				udhl -= 3;
+				break;
+			case 0x08: /* Concatenated, 16 bit ref */ // TODO: Test this
+				if (iei_len != 4) return "Invalid IEI len for concatenated SMS with 16 bit reference";
+				udh->ref = (pdu_parse_byte(pdu, &pdu_length) << 8) | pdu_parse_byte(pdu, &pdu_length);
+				udh->parts = pdu_parse_byte(pdu, &pdu_length);
+				udh->order = pdu_parse_byte(pdu, &pdu_length);
+				udhl -= 4;
+				break;
+			case 0x24: /* National Language Single Shift */
+				if (iei_len != 1) return "Invalid IEI len for single shift language";
+				udh->ss = pdu_parse_byte(pdu, &pdu_length);
+				break;
+			case 0x25: /* National Language Single Shift */
+				if (iei_len != 1) return "Invalid IEI len for locking shift language";
+				udh->ls = pdu_parse_byte(pdu, &pdu_length);
+				break;
+			default:
+				/* skip rest of IEI */
+				*pdu += iei_len * 2;
+				pdu_length -= iei_len * 2;
+				udhl -= iei_len;
+			}
 		}
 		else
 		{

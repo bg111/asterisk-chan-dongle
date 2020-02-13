@@ -7,6 +7,8 @@
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
+
+   Copyright (C) 2020 Max von Buelow <max@m9x.de>
 */
 #include "ast_config.h"
 
@@ -23,6 +25,7 @@
 #include "char_conv.h"
 #include "manager.h"
 #include "channel.h"				/* channel_queue_hangup() channel_queue_control() */
+#include "smsdb.h"
 
 #define DEF_STR(str)	str,STRLEN(str)
 
@@ -175,8 +178,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGF:
-				pvt->use_pdu = CONF_SHARED(pvt, smsaspdu);
-				ast_debug (1, "[%s] SMS operation mode set to %s\n", PVT_ID(pvt), pvt->use_pdu ? "PDU" : "TEXT");
+				ast_debug (1, "[%s] SMS operation mode set to PDU\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CSCS:
@@ -1203,8 +1205,10 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 	char		sms_utf8_str[4096];
 	char*		number;
 	char		from_number_utf8_str[1024];
-	char		text_base64[16384];
+	char		text_base64[40800];
 	size_t		msg_len;
+	pdu_udh_t	udh;
+	pdu_udh_init(&udh);
 
 	const struct at_queue_cmd * ecmd = at_queue_head_cmd (pvt);
 
@@ -1218,7 +1222,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 			pvt_try_restate(pvt);
 
 			cmgr = err_pos = ast_strdupa (str);
-			err = at_parse_cmgr (&err_pos, len, oa, sizeof(oa), &oa_enc, &msg, &msg_enc); // YYY
+			err = at_parse_cmgr (&err_pos, len, oa, sizeof(oa), &oa_enc, &msg, &msg_enc, &udh); // YYY
 			if (err == (void*)0x1) /* HACK! */
 			{
 				char buf[64];
@@ -1237,13 +1241,13 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 
 			/* last chance to define encodings */
 			if (oa_enc == STR_ENCODING_UNKNOWN)
-				oa_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
+				oa_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_ASCII;
 
 			if (msg_enc == STR_ENCODING_UNKNOWN)
-				msg_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_7BIT;
+				msg_enc = pvt->use_ucs2_encoding ? STR_ENCODING_UCS2_HEX : STR_ENCODING_ASCII;
 
 			/* decode number and message */
-			res = str_recode (RECODE_DECODE, oa_enc, oa, strlen(oa), from_number_utf8_str, sizeof (from_number_utf8_str));
+			res = str_decode (oa_enc, oa, strlen(oa), from_number_utf8_str, sizeof (from_number_utf8_str), 0, 0);
 			if (res < 0)
 			{
 				ast_log (LOG_ERROR, "[%s] Error decode SMS originator address: '%s', message is '%s'\n", PVT_ID(pvt), oa, str);
@@ -1254,7 +1258,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 				number = from_number_utf8_str;
 
 			msg_len = strlen(msg);
-			res = str_recode (RECODE_DECODE, msg_enc, msg, msg_len, sms_utf8_str, sizeof (sms_utf8_str));
+			res = str_decode (msg_enc, msg, msg_len, sms_utf8_str, sizeof (sms_utf8_str), udh.ls, udh.ss);
 			if (res < 0)
 			{
 				ast_log (LOG_ERROR, "[%s] Error decode SMS text '%s' from encoding %d, message is '%s'\n", PVT_ID(pvt), msg, msg_enc, str);
@@ -1266,15 +1270,34 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 				msg_len = res;
 			}
 
-			ast_verb (1, "[%s] Got SMS from %s: '%s'\n", PVT_ID(pvt), number, msg);
-			ast_base64encode (text_base64, (unsigned char*)msg, msg_len, sizeof(text_base64));
+			ast_verb (1, "[%s] Got SMS part from %s: '%s' REF: %d %d %d\n", PVT_ID(pvt), number, msg, udh.ref, udh.parts, udh.order);
+			char fullmsg[40800]; // TODO: ucs-2
+			int fullmsg_len;
+			if (udh.parts > 1) {
+				int cnt = smsdb_put(pvt->imsi, number, udh.ref, udh.parts, udh.order, msg, fullmsg);
+				if (cnt <= 0) {
+					ast_log (LOG_ERROR, "[%s] Error putting SMS to SMSDB\n", PVT_ID(pvt));
+					return 0;
+				}
+				if (cnt < udh.parts) {
+					ast_verb (1, "[%s] Waiting for following parts\n", PVT_ID(pvt));
+					return 0;
+				}
+				fullmsg_len = strlen(fullmsg);
+			} else {
+				strncpy(fullmsg, msg, msg_len);
+				fullmsg_len = msg_len;
+			}
 
-			manager_event_new_sms(PVT_ID(pvt), number, msg);
+			ast_verb (1, "[%s] Got full SMS from %s: '%s'\n", PVT_ID(pvt), number, fullmsg);
+			ast_base64encode (text_base64, (unsigned char*)fullmsg, fullmsg_len, sizeof(text_base64));
+
+			manager_event_new_sms(PVT_ID(pvt), number, fullmsg);
 			manager_event_new_sms_base64(PVT_ID(pvt), number, text_base64);
 			{
 				channel_var_t vars[] =
 				{
-					{ "SMS", msg } ,
+					{ "SMS", fullmsg } ,
 					{ "SMS_BASE64", text_base64 },
 					{ "CMGR", (char *)str },
 					{ NULL, NULL },
@@ -1373,10 +1396,10 @@ static int at_response_cusd (struct pvt * pvt, char * str, size_t len)
 
 	// FIXME: strictly check USSD encoding and detect encoding
 	if ((dcs == 0 || dcs == 15) && !pvt->cusd_use_ucs2_decoding)
-		ussd_encoding = STR_ENCODING_7BIT_HEX_PAD_0;
+		ussd_encoding = STR_ENCODING_GSM7_HEX_PAD_0;
 	else
 		ussd_encoding = STR_ENCODING_UCS2_HEX;
-	res = str_recode (RECODE_DECODE, ussd_encoding, cusd, strlen (cusd), cusd_utf8_str, sizeof (cusd_utf8_str));
+	res = str_decode (ussd_encoding, cusd, strlen (cusd), cusd_utf8_str, sizeof (cusd_utf8_str), 0, 0);
 	if(res >= 0)
 	{
 		cusd = cusd_utf8_str;

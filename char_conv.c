@@ -7,6 +7,8 @@
 
     Copyright (C) 2010 - 2011
     bg <bg_one@mail.ru>
+
+    Copyright (C) 2020 Max von Buelow <max@m9x.de>
 */
 #include "ast_config.h"
 
@@ -19,8 +21,9 @@
 
 #include "char_conv.h"
 #include "mutils.h"			/* ITEMS_OF() */
+#include "gsm7_luts.h"
 
-static ssize_t convert_string (const char* in, size_t in_length, char* out, size_t out_size, char* from, char* to)
+EXPORT_DEF ssize_t convert_string (const char* in, size_t in_length, char* out, size_t out_size, char* from, char* to)
 {
 	ICONV_CONST char*	in_ptr = (ICONV_CONST char*) in;
 	size_t			in_bytesleft = in_length;
@@ -114,6 +117,10 @@ static ssize_t chars8bit_to_hexstr (const char* in, size_t in_length, char* out,
 
 	return out_size;
 }
+static ssize_t chars16bit_to_hexstr (const uint16_t* in, size_t in_length, char* out, size_t out_size)
+{
+	return chars8bit_to_hexstr((const char*)in, in_length * 2, out, out_size);
+}
 
 static ssize_t hexstr_ucs2_to_utf8 (const char* in, size_t in_length, char* out, size_t out_size)
 {
@@ -203,52 +210,57 @@ static ssize_t char_to_hexstr_7bit_padded(const char* in, size_t in_length, char
 	/* return total string length, excluding terminating zero */
 	return x;
 }
-
-static ssize_t char_to_hexstr_7bit_pad_0(const char* in, size_t in_length, char* out,
-		size_t out_size)
+static ssize_t chars16bit_to_hexstr_7bit(const uint16_t* in, size_t in_length, char* out,
+		size_t out_size, unsigned out_padding)
 {
-	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 0);
-}
+	size_t i;
+	size_t x;
+	char buf[4];
+	unsigned value = 0;
 
-static ssize_t char_to_hexstr_7bit_pad_1(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 1);
-}
+	/* compute number of bytes we need for the final string, rounded up */
+	x = ((out_padding + (7 * in_length) + 7) / 8);
+	/* compute number of hex characters we need for the final string */
+	x = (2 * x) + 1 /* terminating zero */;
 
-static ssize_t char_to_hexstr_7bit_pad_2(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 2);
-}
+	/* check that the buffer is not too small */
+	if (x > out_size)
+		return -1;
 
-static ssize_t char_to_hexstr_7bit_pad_3(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 3);
-}
+	for (x = i = 0; i != in_length; i++) {
+		char c[] = { in[i] >> 8, in[i] & 255 };
+// 		printf("%d %d-%d %s\n", in[i], c[0], c[1], LUT_GSM7_LS[0][c[1]]);
 
-static ssize_t char_to_hexstr_7bit_pad_4(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 4);
-}
+		for (int j = c[0] == 0; j < 2; ++j) {
+			value |= (c[j] & 0x7F) << out_padding;
+			out_padding += 7;
+			if (out_padding < 8)
+				continue;
+			/* output one byte in hex */
+			snprintf (buf, sizeof(buf), "%02X", value & 0xFF);
+			memcpy (out + x, buf, 2);
+			x = x + 2;
+			value >>= 8;
+			out_padding -= 8;
+		}
+	}
+	if (out_padding != 0) {
+		snprintf (buf, sizeof(buf), "%02X", value & 0xFF);
+		memcpy (out + x, buf, 2);
+		x = x + 2;
+	}
+	/* zero terminate final string */
+	out[x] = '\0';
 
-static ssize_t char_to_hexstr_7bit_pad_5(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 5);
-}
-
-static ssize_t char_to_hexstr_7bit_pad_6(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return char_to_hexstr_7bit_padded(in, in_length, out, out_size, 6);
+	/* return total string length, excluding terminating zero */
+	return x;
 }
 
 static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char* out,
-		size_t out_size, unsigned in_padding)
+		size_t out_size, unsigned in_padding, uint8_t ls, uint8_t ss)
 {
+	if (ls > 13) ls = 0;
+	if (ss > 13) ss = 0;
 	size_t i;
 	size_t x;
 	char buf[4];
@@ -282,7 +294,6 @@ static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char
 
 	/* parse the hexstring */
 	int esc = 0;
-	int ss = 0, ls = 0;
 	for (x = i = 0; i != in_length; i++) {
 		if (x >= out_size)
 			return -1;
@@ -300,6 +311,7 @@ static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char
 				if (val[0] == '\x1b' && !val[1]) {
 					esc = 1;
 				} else {
+					esc = 0;
 					do {
 						out[x++] = *val++;
 					} while (*val && x < out_size);
@@ -315,48 +327,6 @@ static ssize_t hexstr_7bit_to_char_padded(const char* in, size_t in_length, char
 	return x;
 }
 
-static ssize_t hexstr_7bit_to_char_pad_0(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return hexstr_7bit_to_char_padded(in, in_length, out, out_size, 0);
-}
-
-static ssize_t hexstr_7bit_to_char_pad_1(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return hexstr_7bit_to_char_padded(in, in_length, out, out_size, 1);
-}
-
-static ssize_t hexstr_7bit_to_char_pad_2(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return hexstr_7bit_to_char_padded(in, in_length, out, out_size, 2);
-}
-
-static ssize_t hexstr_7bit_to_char_pad_3(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return hexstr_7bit_to_char_padded(in, in_length, out, out_size, 3);
-}
-
-static ssize_t hexstr_7bit_to_char_pad_4(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return hexstr_7bit_to_char_padded(in, in_length, out, out_size, 4);
-}
-
-static ssize_t hexstr_7bit_to_char_pad_5(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return hexstr_7bit_to_char_padded(in, in_length, out, out_size, 5);
-}
-
-static ssize_t hexstr_7bit_to_char_pad_6(const char* in, size_t in_length, char* out,
-		size_t out_size)
-{
-	return hexstr_7bit_to_char_padded(in, in_length, out, out_size, 6);
-}
-
 #/* */
 ssize_t just_copy (const char* in, size_t in_length, char* out, size_t out_size)
 {
@@ -370,53 +340,68 @@ ssize_t just_copy (const char* in, size_t in_length, char* out, size_t out_size)
 	return -ENOMEM;
 }
 
-typedef ssize_t (*coder) (const char* in, size_t in_length, char* out, size_t out_size);
-
-/* array in order of values RECODE_* */
-static const coder recoders[STR_ENCODING_UNKNOWN][2] =
-{
-	[STR_ENCODING_7BIT_HEX_PAD_0] = { hexstr_7bit_to_char_pad_0, char_to_hexstr_7bit_pad_0 },
-	[STR_ENCODING_8BIT_HEX] = { hexstr_to_8bitchars, chars8bit_to_hexstr },
-	[STR_ENCODING_UCS2_HEX] = { hexstr_ucs2_to_utf8, utf8_to_hexstr_ucs2 },
-	[STR_ENCODING_7BIT] = { just_copy, just_copy },
-	[STR_ENCODING_7BIT_HEX_PAD_1] = { hexstr_7bit_to_char_pad_1, char_to_hexstr_7bit_pad_1 },
-	[STR_ENCODING_7BIT_HEX_PAD_2] = { hexstr_7bit_to_char_pad_2, char_to_hexstr_7bit_pad_2 },
-	[STR_ENCODING_7BIT_HEX_PAD_3] = { hexstr_7bit_to_char_pad_3, char_to_hexstr_7bit_pad_3 },
-	[STR_ENCODING_7BIT_HEX_PAD_4] = { hexstr_7bit_to_char_pad_4, char_to_hexstr_7bit_pad_4 },
-	[STR_ENCODING_7BIT_HEX_PAD_5] = { hexstr_7bit_to_char_pad_5, char_to_hexstr_7bit_pad_5 },
-	[STR_ENCODING_7BIT_HEX_PAD_6] = { hexstr_7bit_to_char_pad_6, char_to_hexstr_7bit_pad_6 },
-};
-
 #/* */
-EXPORT_DEF ssize_t str_recode(recode_direction_t dir, str_encoding_t encoding, const char* in, size_t in_length, char* out, size_t out_size)
+EXPORT_DEF ssize_t str_encode(str_encoding_t encoding, const char* in, size_t in_length, char* out, size_t out_size)
 {
-	unsigned idx = encoding;
-	if((dir == RECODE_DECODE || dir == RECODE_ENCODE) && idx < ITEMS_OF(recoders))
-		return (recoders[idx][dir])(in, in_length, out, out_size);
-	return -EINVAL;
+	if (encoding >= STR_ENCODING_GSM7_HEX_PAD_0 && encoding <= STR_ENCODING_GSM7_HEX_PAD_6) {
+		return char_to_hexstr_7bit_padded(in, in_length, out, out_size, encoding - STR_ENCODING_GSM7_HEX_PAD_0);
+	}
+	switch (encoding) {
+	case STR_ENCODING_ASCII:
+		return just_copy(in, in_length, out, out_size);
+	case STR_ENCODING_UCS2_HEX:
+		return utf8_to_hexstr_ucs2(in, in_length, out, out_size);
+	default:
+		return -EINVAL;
+	}
 }
 
 #/* */
-EXPORT_DEF str_encoding_t get_encoding(recode_direction_t hint, const char* in, size_t length)
+EXPORT_DEF ssize_t str_encode16(str_encoding_t encoding, const uint16_t* in, size_t in_length, char* out, size_t out_size)
 {
-	if(hint == RECODE_ENCODE)
-	{
-		for(; length; --length, ++in)
-			if(*in & 0x80)
-				return STR_ENCODING_UCS2_HEX;
-		return STR_ENCODING_7BIT_HEX_PAD_0;
+	if (encoding == STR_ENCODING_UCS2_HEX) {
+		return chars16bit_to_hexstr(in, in_length, out, out_size);
+	} else if (encoding >= STR_ENCODING_GSM7_HEX_PAD_0 && encoding <= STR_ENCODING_GSM7_HEX_PAD_6) {
+		return chars16bit_to_hexstr_7bit(in, in_length, out, out_size, encoding - STR_ENCODING_GSM7_HEX_PAD_0);
 	}
-	else
+	return -EINVAL;
+}
+
+EXPORT_DEF ssize_t str_decode(str_encoding_t encoding, const char* in, size_t in_length, char* out, size_t out_size, uint8_t ls, uint8_t ss)
+{
+	if (encoding >= STR_ENCODING_GSM7_HEX_PAD_0 && encoding <= STR_ENCODING_GSM7_HEX_PAD_6) {
+		return hexstr_7bit_to_char_padded(in, in_length, out, out_size, encoding - STR_ENCODING_GSM7_HEX_PAD_0, ls, ss);
+	}
+	switch (encoding) {
+	case STR_ENCODING_ASCII:
+		return just_copy(in, in_length, out, out_size);
+	case STR_ENCODING_8BIT_HEX:
+		return hexstr_to_8bitchars(in, in_length, out, out_size);
+	case STR_ENCODING_UCS2_HEX:
+		return hexstr_ucs2_to_utf8(in, in_length, out, out_size);
+	default:
+		return -EINVAL;
+	}
+}
+
+#/* */
+EXPORT_DEF const uint8_t *get_char_gsm7_encoding(uint16_t c)
+{
+	int minor = c >> 8, major = c & 255;
+	int subtab = LUT_GSM7_REV1[major];
+	if (subtab == -1) return LUT_GSM7_REV2_INV;
+	return LUT_GSM7_REV2[subtab][minor];
+}
+EXPORT_DEF str_encoding_t get_encoding(const char* in, size_t length)
+{
+	size_t x;
+	for(x = 0; x < length; ++x)
 	{
-		size_t x;
-		for(x = 0; x < length; ++x)
-		{
-			if(parse_hexdigit(in[x]) < 0) {
-				return STR_ENCODING_7BIT;
-			}
+		if(parse_hexdigit(in[x]) < 0) {
+			return STR_ENCODING_ASCII;
 		}
-		// TODO: STR_ENCODING_7BIT_HEX_PAD_X or STR_ENCODING_8BIT_HEX or STR_ENCODING_UCS2_HEX
 	}
+	// TODO: STR_ENCODING_GSM7_HEX_PAD_X or STR_ENCODING_8BIT_HEX or STR_ENCODING_UCS2_HEX
 
 	return STR_ENCODING_UNKNOWN;
 }
