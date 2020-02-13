@@ -14,13 +14,7 @@ env:
 matrix:
   include:
     - env: ASTVER=16
-    #- env: ASTVER=15
-    #- env: ASTVER=14
     - env: ASTVER=13
-    #- env: ASTVER=12
-    - env: ASTVER=11
-    #- env: ASTVER=10
-    - env: ASTVER=1.8
 
 before_install:
   - wget http://junk.devs.nu/a/asterisk/asterisk-$ASTVER-include.tar.bz2
