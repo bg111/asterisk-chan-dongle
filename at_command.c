@@ -13,6 +13,7 @@
    Copyright (C) 2009 - 2010 Artem Makhutov
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
+   Copyright (C) 2020 Max von Buelow <max@m9x.de>
 */
 
 #include "ast_config.h"
@@ -25,12 +26,19 @@
 #include "char_conv.h"			/* char_to_hexstr_7bit() */
 #include "chan_dongle.h"		/* struct pvt */
 #include "pdu.h"			/* build_pdu() */
+#include "smsdb.h"
 
 static const char cmd_at[] 	 = "AT\r";
 static const char cmd_chld1x[]   = "AT+CHLD=1%d\r";
 static const char cmd_chld2[]    = "AT+CHLD=2\r";
 static const char cmd_clcc[]     = "AT+CLCC\r";
 static const char cmd_ddsetex2[] = "AT^DDSETEX=2\r";
+
+typedef struct csms_part_data
+{
+	struct cpvt *cpvt;
+	void **id;
+} csms_part_data_t;
 
 /*!
  * \brief Format and fill generic command
@@ -202,7 +210,7 @@ EXPORT_DEF int at_enque_initialization(struct cpvt* cpvt, at_cmd_t from_command)
 		}
 		else if(cmds[out].cmd == CMD_AT_CMGF)
 		{
-			err = at_fill_generic_cmd(&cmds[out], "AT+CMGF=%d\r", CONF_SHARED(pvt, smsaspdu) ? 0 : 1);
+			err = at_fill_generic_cmd(&cmds[out], "AT+CMGF=0\r");
 			if(err)
 				goto failure;
 			ptmp2 = cmds[out].data;
@@ -285,113 +293,43 @@ EXPORT_DEF int at_enque_pdu(struct cpvt * cpvt, const char * pdu, attribute_unus
 }
 
 /*!
- * \brief Enque an SMS message
+ * \brief Enque a partial SMS message
  * \param cpvt -- cpvt structure
  * \param number -- the destination of the message
  * \param msg -- utf-8 encoded message
  */
+static int at_enque_sms_part(const char *buf, unsigned length, void *s)
+{
+	(void)(length);
 
+	csms_part_data_t *dta = s;
+	return at_enque_pdu(dta->cpvt, buf, NULL, 0, 0, dta->id);
+}
 EXPORT_DEF int at_enque_sms (struct cpvt* cpvt, const char* destination, const char* msg, unsigned validity_minutes, int report_req, void ** id)
 {
 	ssize_t res;
-	char buf[1024] = "AT+CMGS=\"";
-	char pdu_buf[2048];
 	pvt_t* pvt = cpvt->pvt;
 
-	at_queue_cmd_t at_cmd[] = {
-		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0 },
-		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
-		};
-
-	if(pvt->use_pdu)
-	{
-		/* set default validity period */
-		if(validity_minutes <= 0)
-			validity_minutes = 3 * 24 * 60;
+	/* set default validity period */
+	if(validity_minutes <= 0)
+		validity_minutes = 3 * 24 * 60;
 /*		res = pdu_build(pdu_buf, sizeof(pdu_buf), pvt->sms_scenter, destination, msg, validity_minutes, report_req);
 */
-		res = pdu_build(pdu_buf, sizeof(pdu_buf), "", destination, msg, validity_minutes, report_req);
-		if(res <= 0)
-		{
-			if(res == -E2BIG)
-			{
-			ast_verb (3, "[%s] SMS Message too long, PDU has limit 140 octets\n", PVT_ID(pvt));
-			ast_log (LOG_WARNING, "[%s] SMS Message too long, PDU has limit 140 octets\n", PVT_ID(pvt));
-			}
-			/* TODO: complain on other errors */
-			return res;
-		}
-
-		if(res > (int)(sizeof(pdu_buf) - 2))
-			return -1;
-
-		return at_enque_pdu(cpvt, pdu_buf, NULL, 0, 0, id);
-	}
-	else
+	csms_part_data_t dta = { cpvt, id };
+	uint16_t csmsref = smsdb_outgoing_get(PVT_ID(pvt));
+	res = pdu_build_mult(at_enque_sms_part, "", destination, msg, validity_minutes, report_req, csmsref, &dta);
+	if(res <= 0)
 	{
-		at_cmd[0].length = 9;
-
-		res = str_recode (RECODE_ENCODE, STR_ENCODING_UCS2_HEX, destination, strlen (destination), buf + at_cmd[0].length, sizeof(buf) - at_cmd[0].length - 3);
-		if(res <= 0)
+		if(res == -E2BIG)
 		{
-			ast_log (LOG_ERROR, "[%s] Error converting SMS number to UCS-2\n", PVT_ID(pvt));
-			return -4;
+		ast_verb (3, "[%s] SMS Message too long, PDU has limit 140 octets\n", PVT_ID(pvt));
+		ast_log (LOG_WARNING, "[%s] SMS Message too long, PDU has limit 140 octets\n", PVT_ID(pvt));
 		}
-		at_cmd[0].length += res;
-		buf[at_cmd[0].length++] = '"';
-		buf[at_cmd[0].length++] = '\r';
-		buf[at_cmd[0].length] = '\0';
+		/* TODO: complain on other errors */
+		return res;
 	}
 
-	at_cmd[0].data = ast_strdup (buf);
-	if(!at_cmd[0].data)
-		return -ENOMEM;
-
-	res = strlen (msg);
-
-//	if(!pvt->use_pdu)
-//	{
-		if (pvt->use_ucs2_encoding)
-		{
-			/* NOTE: bg: i test limit of no response is 133, but for +CMS ERROR: ?  */
-			/* message limit in 178 octet of TPDU (w/o SCA) Headers: Type(1)+MR(1)+DA(3..12)+PID(1)+DCS(1)+VP(0,1,7)+UDL(1) = 8..24 (usually 14)  */
-			if(res > 70)
-			{
-				ast_log (LOG_ERROR, "[%s] SMS message too long, 70 symbols max\n", PVT_ID(pvt));
-				return -4;
-			}
-
-			res = str_recode (RECODE_ENCODE, STR_ENCODING_UCS2_HEX, msg, res, pdu_buf, sizeof(pdu_buf) - 2);
-			if (res < 0)
-			{
-				ast_free (at_cmd[0].data);
-				ast_log (LOG_ERROR, "[%s] Error converting SMS to UCS-2: '%s'\n", PVT_ID(pvt), msg);
-				return -4;
-			}
-			pdu_buf[res++] = 0x1a;
-			pdu_buf[res] = 0;
-			at_cmd[1].length = res;
-		}
-		else
-		{
-			if(res > 140)
-			{
-				ast_log (LOG_ERROR, "[%s] SMS message too long, 140 symbols max\n", PVT_ID(pvt));
-				return -4;
-			}
-
-			at_cmd[1].length = snprintf (pdu_buf, sizeof(pdu_buf), "%.160s\x1a", msg);
-		}
-//	}
-
-	at_cmd[1].data = ast_strdup(pdu_buf);
-	if(!at_cmd[1].data)
-	{
-		ast_free(at_cmd[0].data);
-		return -ENOMEM;
-	}
-
-	return at_queue_insert_task(cpvt, at_cmd, ITEMS_OF(at_cmd), 0, (struct at_queue_task **)id);
+	return res;
 }
 
 /*!
@@ -415,12 +353,12 @@ EXPORT_DEF int at_enque_ussd (struct cpvt * cpvt, const char * code, attribute_u
 	length = STRLEN(cmd);
 
 	if (pvt->cusd_use_7bit_encoding)
-		cusd_encoding = STR_ENCODING_7BIT_HEX_PAD_0;
+		cusd_encoding = STR_ENCODING_GSM7_HEX_PAD_0;
 	else if (pvt->use_ucs2_encoding)
 		cusd_encoding = STR_ENCODING_UCS2_HEX;
 	else
-		cusd_encoding = STR_ENCODING_7BIT;
-	res = str_recode(RECODE_ENCODE, cusd_encoding, code, strlen (code), buf + STRLEN(cmd), sizeof (buf) - STRLEN(cmd) - STRLEN(cmd_end) - 1);
+		cusd_encoding = STR_ENCODING_ASCII;
+	res = str_encode(cusd_encoding, code, strlen (code), buf + STRLEN(cmd), sizeof (buf) - STRLEN(cmd) - STRLEN(cmd_end) - 1);
 	if (res <= 0)
 	{
 		ast_log (LOG_ERROR, "[%s] Error converting USSD code: %s\n", PVT_ID(pvt), code);

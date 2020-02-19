@@ -69,6 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include "channel.h"			/* channel_queue_hangup() */
 #include "dc_config.h"			/* dc_uconfig_fill() dc_gconfig_fill() dc_sconfig_fill()  */
 #include "pdiscovery.h"			/* pdiscovery_lookup() pdiscovery_init() pdiscovery_fini() */
+#include "smsdb.h"
 
 EXPORT_DEF const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
 EXPORT_DEF public_state_t * gpublic;
@@ -321,12 +322,10 @@ static void disconnect_dongle (struct pvt* pvt)
 		pvt->has_sms = 0;
 		pvt->has_voice = 0;
 		pvt->has_call_waiting = 0;
-		pvt->use_pdu = 0;
 	}
 
 	pvt->connected		= 0;
 	pvt->initialized	= 0;
-	pvt->use_pdu		= 0;
 	pvt->has_call_waiting	= 0;
 
 	/* FIXME: LOST real device state */
@@ -1493,7 +1492,6 @@ static int pvt_reconfigure(struct pvt * pvt, const pvt_config_t * settings, rest
 			|| strcmp(UCONFIG(settings, imsi), CONF_UNIQ(pvt, imsi))
 			|| SCONFIG(settings, u2diag) != CONF_SHARED(pvt, u2diag)
 			|| SCONFIG(settings, resetdongle) != CONF_SHARED(pvt, resetdongle)
-			|| SCONFIG(settings, smsaspdu) != CONF_SHARED(pvt, smsaspdu)
 			|| SCONFIG(settings, callwaiting) != CONF_SHARED(pvt, callwaiting))
 		{
 			/* TODO: schedule restart */
@@ -1696,6 +1694,7 @@ static int public_state_init(struct public_state * state)
 			/* register our channel type */
 			if(ast_channel_register(&channel_tech) == 0)
 			{
+				smsdb_init();
 				cli_register();
 
 				app_register();

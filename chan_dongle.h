@@ -175,7 +175,6 @@ typedef struct pvt
 #define VOLUME_SYNC_BEGIN	0
 #define VOLUME_SYNC_DONE	3
 
-	unsigned int		use_pdu:1;			/*!< PDU SMS mode in force */
 	unsigned int		has_sms:1;			/*!< device has SMS support */
 	unsigned int		has_voice:1;			/*!< device has voice call support */
 	unsigned int		has_call_waiting:1;		/*!< call waiting enabled on device */
