@@ -287,7 +287,7 @@ static int channel_call(struct ast_channel* channel, char* dest, attribute_unuse
 	}
 
 	PVT_STAT(pvt, out_calls) ++;
-	if (at_enque_dial (cpvt, dest_num, clir))
+	if (at_enqueue_dial(cpvt, dest_num, clir))
 	{
 		ast_mutex_unlock (&pvt->lock);
 		ast_log (LOG_ERROR, "[%s] Error sending ATD command\n", PVT_ID(pvt));
@@ -395,7 +395,7 @@ static int channel_hangup (struct ast_channel* channel)
 
 		if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_NEED_HANGUP))
 		{
-			if (at_enque_hangup (cpvt, cpvt->call_idx))
+			if (at_enqueue_hangup(cpvt, cpvt->call_idx))
 				ast_log (LOG_ERROR, "[%s] Error adding AT+CHUP command to queue, call not terminated!\n", PVT_ID(pvt));
 			else
 				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
@@ -435,7 +435,7 @@ static int channel_answer (struct ast_channel* channel)
 
 	if (cpvt->dir == CALL_DIR_INCOMING)
 	{
-		if (at_enque_answer (cpvt))
+		if (at_enqueue_answer(cpvt))
 		{
 			ast_log (LOG_ERROR, "[%s] Error sending answer commands\n", PVT_ID(pvt));
 		}
@@ -463,7 +463,7 @@ static int channel_digit_begin (struct ast_channel* channel, char digit)
 
 	ast_mutex_lock (&pvt->lock);
 
-	rv = at_enque_dtmf (cpvt, digit);
+	rv = at_enqueue_dtmf(cpvt, digit);
 	if (rv)
 	{
 		ast_mutex_unlock (&pvt->lock);
@@ -1524,7 +1524,7 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
 			;
 		else if (oldstate == CALL_STATE_ONHOLD)
 		{
-			if(at_enque_activate(cpvt))
+			if (at_enqueue_activate(cpvt))
 			{
 				/* TODO: handle error */
 				ast_log(LOG_ERROR,

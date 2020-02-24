@@ -395,7 +395,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				if (!pvt->initialized)
 				{
 					/* continue initialization in other job at cmd CMD_AT_CMGF */
-					if (at_enque_initialization(task->cpvt, CMD_AT_CMGF))
+					if (at_enqueue_initialization(task->cpvt, CMD_AT_CMGF))
 					{
 						ast_log (LOG_ERROR, "[%s] Error schedule initialization commands\n", PVT_ID(pvt));
 						goto e_return;
@@ -424,7 +424,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 					if (pvt->has_voice)
 					{
 						/* continue initialization in other job at cmd CMD_AT_CSQ */
-						if (at_enque_initialization(task->cpvt, CMD_AT_CSQ))
+						if (at_enqueue_initialization(task->cpvt, CMD_AT_CSQ))
 						{
 							ast_log (LOG_ERROR, "[%s] Error querying signal strength\n", PVT_ID(pvt));
 							goto e_return;
@@ -596,9 +596,9 @@ static int at_response_mode (struct pvt* pvt, char* str, size_t len)
 
 static void request_clcc(struct pvt* pvt)
 {
-	if (at_enque_clcc(&pvt->sys_chan))
+	if (at_enqueue_clcc(&pvt->sys_chan))
 	{
-		ast_log (LOG_ERROR, "[%s] Error enque List Current Calls request\n", PVT_ID(pvt));
+		ast_log(LOG_ERROR, "[%s] Error enqueue List Current Calls request\n", PVT_ID(pvt));
 	}
 }
 
@@ -652,7 +652,7 @@ static int at_response_orig (struct pvt* pvt, const char* str)
 			if(pvt->volume_sync_step == VOLUME_SYNC_BEGIN)
 			{
 				pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
-				if (at_enque_volsync (cpvt))
+				if (at_enqueue_volsync(cpvt))
 				{
 					ast_log (LOG_ERROR, "[%s] Error synchronize audio level\n", PVT_ID(pvt));
 				}
@@ -822,11 +822,11 @@ static int at_response_conn (struct pvt* pvt, const char* str)
 			PVT_STAT(pvt, calls_answered[cpvt->dir]) ++;
 			change_channel_state(cpvt, CALL_STATE_ACTIVE, 0);
 			if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE))
-				at_enque_conference(cpvt);
+				at_enqueue_conference(cpvt);
 		}
 		else
 		{
-			at_enque_hangup(&pvt->sys_chan, call_index);
+			at_enqueue_hangup(&pvt->sys_chan, call_index);
 			ast_log (LOG_ERROR, "[%s] answered incoming call with not exists call idx %d, hanging up!\n", PVT_ID(pvt), call_index);
 		}
 	}
@@ -857,7 +857,7 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 	{
 		ast_log (LOG_ERROR, "[%s] Unable to allocate channel for incoming call\n", PVT_ID(pvt));
 
-		if (at_enque_hangup (&pvt->sys_chan, call_idx))
+		if (at_enqueue_hangup(&pvt->sys_chan, call_idx))
 		{
 			ast_log (LOG_ERROR, "[%s] Error sending AT+CHUP command\n", PVT_ID(pvt));
 		}
@@ -1027,7 +1027,7 @@ static int at_response_clcc (struct pvt* pvt, char* str)
 	call will be activated but no voice
 */
 			ast_debug (1, "[%s] all %u call held, try activate some\n",  PVT_ID(pvt), all);
-			if(at_enque_flip_hold(&pvt->sys_chan))
+			if (at_enqueue_flip_hold(&pvt->sys_chan))
 			{
 				ast_log (LOG_ERROR, "[%s] can't flip active and hold/waiting calls \n", PVT_ID(pvt));
 			}
@@ -1126,7 +1126,7 @@ static int at_response_ring (struct pvt* pvt)
 		/* We only want to syncronize volume on the first ring and if no channels yes */
 		if (pvt->volume_sync_step == VOLUME_SYNC_BEGIN && PVT_NO_CHANS(pvt))
 		{
-			if (at_enque_volsync (&pvt->sys_chan))
+			if (at_enqueue_volsync(&pvt->sys_chan))
 			{
 				ast_log (LOG_ERROR, "[%s] Error synchronize audio level\n", PVT_ID(pvt));
 			}
@@ -1164,7 +1164,7 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 
 		if (pvt_enabled(pvt))
 		{
-			if (at_enque_retrive_sms (&pvt->sys_chan, index, CONF_SHARED(pvt, autodeletesms)))
+			if (at_enqueue_retrieve_sms(&pvt->sys_chan, index, CONF_SHARED(pvt, autodeletesms)))
 			{
 				ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
 				return -1;
@@ -1558,7 +1558,7 @@ static int at_response_creg (struct pvt* pvt, char* str, size_t len)
 	char*	lac;
 	char*	ci;
 
-	if (at_enque_cops (&pvt->sys_chan))
+	if (at_enqueue_cops(&pvt->sys_chan))
 	{
 		ast_log (LOG_ERROR, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
 	}
@@ -1574,7 +1574,7 @@ static int at_response_creg (struct pvt* pvt, char* str, size_t len)
 //#ifdef ISSUE_CCWA_STATUS_CHECK
 		/* only if gsm_registered 0 -> 1 ? */
 		if(!pvt->gsm_registered && CONF_SHARED(pvt, callwaiting) != CALL_WAITING_AUTO)
-			at_enque_set_ccwa(&pvt->sys_chan, 0, 0, CONF_SHARED(pvt, callwaiting));
+			at_enqueue_set_ccwa(&pvt->sys_chan, 0, 0, CONF_SHARED(pvt, callwaiting), 0, NULL);
 //#endif
 		pvt->gsm_registered = 1;
 		manager_event_device_status(PVT_ID(pvt), "Register");

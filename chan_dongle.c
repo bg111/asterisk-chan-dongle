@@ -404,7 +404,7 @@ static void* do_monitor_phone (void* data)
 	clean_read_data(dev, fd);
 
 	/* schedule dongle initilization  */
-	if (at_enque_initialization (&pvt->sys_chan, CMD_AT))
+	if (at_enqueue_initialization(&pvt->sys_chan, CMD_AT))
 	{
 		ast_log (LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
 		goto e_cleanup;
@@ -444,7 +444,7 @@ static void* do_monitor_phone (void* data)
 				ast_log (LOG_ERROR, "[%s] timedout while waiting '%s' in response to '%s'\n", dev, at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
 				goto e_cleanup;
 			}
-			at_enque_ping(&pvt->sys_chan);
+			at_enqueue_ping(&pvt->sys_chan);
 			ast_mutex_unlock (&pvt->lock);
 			continue;
 		}
