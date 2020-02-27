@@ -86,7 +86,7 @@ single quotes.*
     exten => *#123#,n,Playback(vm-goodbye)
     exten => *#123#,n,Hangup()
 
-    exten => _#X.,1,DongleSendSMS(dongle0,${EXTEN:1},"Please call me",1440,yes)
+    exten => _#X.,1,DongleSendSMS(dongle0,${EXTEN:1},"Please call me",1440,yes,"magicID")
     exten => _#X.,n,Answer()
     exten => _#X.,n,Wait(2)
     exten => _#X.,n,Playback(vm-goodbye)

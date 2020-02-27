@@ -144,8 +144,6 @@ typedef struct pvt
 
 	/* device caps */
 	unsigned int		use_ucs2_encoding:1;
-	unsigned int		cusd_use_7bit_encoding:1;
-	unsigned int		cusd_use_ucs2_decoding:1;
 
 	/* device state */
 	int			gsm_reg_status;
@@ -249,7 +247,7 @@ INLINE_DECL struct pvt * find_device (const char* name)
 	return find_device_ex(gpublic, name);
 }
 
-EXPORT_DECL struct pvt * find_device_ext(const char* name, const char ** reason);
+EXPORT_DECL struct pvt * find_device_ext(const char* name);
 EXPORT_DECL struct pvt * find_device_by_resource_ex(struct public_state * state, const char * resource, int opts, const struct ast_channel * requestor, int * exists);
 EXPORT_DECL void pvt_dsp_setup(struct pvt * pvt, const char * id, dc_dtmf_setting_t dtmf_new);
 

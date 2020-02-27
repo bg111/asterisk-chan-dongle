@@ -289,12 +289,13 @@ EXPORT_DEF int at_queue_insert_const (struct cpvt * cpvt, const at_queue_cmd_t *
 }
 
 #/* */
-EXPORT_DEF int at_queue_insert_task (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, at_queue_task_t ** task)
+EXPORT_DEF int at_queue_insert_uid(struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, int uid)
 {
 	unsigned idx;
-	task[0] = at_queue_add(cpvt, cmds, cmdsno, athead);
+	at_queue_task_t *task = at_queue_add(cpvt, cmds, cmdsno, athead);
+	task->uid = uid;
 
-	if(!task[0])
+	if(!task)
 	{
 		for(idx = 0; idx < cmdsno; idx++)
 		{
@@ -302,18 +303,16 @@ EXPORT_DEF int at_queue_insert_task (struct cpvt * cpvt, at_queue_cmd_t * cmds, 
 		}
 	}
 
-	if(at_queue_run(cpvt->pvt))
-		task[0] = NULL;
+	if (at_queue_run(cpvt->pvt))
+		task = NULL;
 
-	return task[0] == NULL;
+	return task == NULL;
 }
 
 #/* */
 EXPORT_DEF int at_queue_insert(struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead)
 {
-	at_queue_task_t * task;
-
-	return at_queue_insert_task(cpvt, cmds, cmdsno, athead, &task);
+	return at_queue_insert_uid(cpvt, cmds, cmdsno, athead, 0);
 }
 
 
