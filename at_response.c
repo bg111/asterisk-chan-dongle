@@ -337,6 +337,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			case CMD_AT_U2DIAG:
 			case CMD_AT_CCWA_SET:
 			case CMD_AT_CCWA_STATUS:
+			case CMD_AT_CNUM:
 				ast_log (LOG_ERROR, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				/* mean ignore error */
 				break;
@@ -380,11 +381,6 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			case CMD_AT_CREG:
 				ast_debug (1, "[%s] Error getting registration info\n", PVT_ID(pvt));
 				break;
-
-			case CMD_AT_CNUM:
-				ast_log (LOG_WARNING, "[%s] Error checking subscriber phone number\n", PVT_ID(pvt));
-				ast_verb (3, "[%s] Dongle needs to be reinitialized. The SIM card is not ready yet\n", PVT_ID(pvt));
-				goto e_return;
 
 			case CMD_AT_CVOICE:
 				ast_debug (1, "[%s] Dongle has NO voice support\n", PVT_ID(pvt));
