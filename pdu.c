@@ -797,10 +797,12 @@ EXPORT_DEF const char * pdu_parse(char ** pdu, size_t tpdu_length, char * oa, si
 	{
 		const char *ret = NULL;
 		int reference = pdu_parse_byte(pdu, &pdu_length);
-		/* Skip over 8 bytes TP-DA */
-		if (reference >= 0 && pdu_length >= 8) {
-			(*pdu) += 8;
-			pdu_length -= 8;
+		int tp_da_len = pdu_parse_byte(pdu, &pdu_length);
+
+		/* Skip over N-bytes of TP-DA */
+		if (reference >= 0 && tp_da_len >= 0 && pdu_length >= (size_t)tp_da_len) {
+			(*pdu) += tp_da_len;
+			pdu_length -= tp_da_len;
 			/* Skip over 7 bytes timestamp TP-SCTS */
 			if (pdu_parse_timestamp(pdu, &pdu_length) >= 0 &&
 					/* Skip over 7 bytes timestamp TP-DT */

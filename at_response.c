@@ -274,6 +274,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_CMGR:
 				ast_debug (1, "[%s] SMS message see later\n", PVT_ID(pvt));
+				at_retrieve_next_sms(&pvt->sys_chan);
 				break;
 
 			case CMD_AT_CMGD:
@@ -477,14 +478,11 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGR:
-				pvt->incoming_sms = 0;
-				pvt_try_restate(pvt);
 				ast_log (LOG_ERROR, "[%s] Error reading SMS message\n", PVT_ID(pvt));
+				at_retrieve_next_sms(&pvt->sys_chan);
 				break;
 
 			case CMD_AT_CMGD:
-				pvt->incoming_sms = 0;
-				pvt_try_restate(pvt);
 				ast_log (LOG_ERROR, "[%s] Error deleting SMS message\n", PVT_ID(pvt));
 				break;
 
@@ -525,7 +523,14 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 	}
 	else if (ecmd)
 	{
-		ast_log (LOG_ERROR, "[%s] Received 'ERROR' when expecting '%s', ignoring\n", PVT_ID(pvt), at_res2str (ecmd->res));
+		switch (ecmd->cmd) {
+		case CMD_AT_CMGR:
+			at_retrieve_next_sms(&pvt->sys_chan);
+			break;
+		default:
+			ast_log (LOG_ERROR, "[%s] Received 'ERROR' when expecting '%s', ignoring\n", PVT_ID(pvt), at_res2str (ecmd->res));
+			break;
+		}
 	}
 	else
 	{
@@ -1135,6 +1140,36 @@ static int at_response_ring (struct pvt* pvt)
 }
 
 /*!
+ * \brief Poll for SMS messages
+ * \param pvt -- pvt structure
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int
+at_poll_sms (struct pvt *pvt)
+{
+	/* poll all SMSs stored in device */
+	if (CONF_SHARED(pvt, disablesms) == 0)
+	{
+		int i;
+
+		for (i = 0; i != SMS_INDEX_MAX; i++)
+		{
+			if (at_enqueue_retrieve_sms(&pvt->sys_chan, i))
+			{
+				ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message #%d\n", PVT_ID(pvt), i);
+				return -1;
+			}
+		}
+		return 0;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+/*!
  * \brief Handle +CMTI response
  * \param pvt -- pvt structure
  * \param str -- string containing response (null terminated)
@@ -1158,14 +1193,10 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 	{
 		ast_debug (1, "[%s] Incoming SMS message\n", PVT_ID(pvt));
 
-		if (pvt_enabled(pvt))
+		if (at_enqueue_retrieve_sms(&pvt->sys_chan, index))
 		{
-			if (at_enqueue_retrieve_sms(&pvt->sys_chan, index, CONF_SHARED(pvt, autodeletesms)))
-			{
-				ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
-				return -1;
-			}
-			pvt->incoming_sms = 1;
+			ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
+			return -1;
 		}
 	}
 	else
@@ -1214,8 +1245,6 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 		if (ecmd->res == RES_CMGR || ecmd->cmd == CMD_USER)
 		{
 			at_queue_handle_result (pvt, RES_CMGR);
-			pvt->incoming_sms = 0;
-			pvt_try_restate(pvt);
 
 			cmgr = err_pos = ast_strdupa (str);
 			err = at_parse_cmgr (&err_pos, len, oa, sizeof(oa), &oa_enc, &msg, &msg_enc, &udh); // YYY
@@ -1225,12 +1254,12 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 				int res = (int)(long)msg; /* HACK */
 				snprintf(buf, 64, "Delivered\r\nForeignID: %d", res);
 				manager_event_sent_notify(PVT_ID(pvt), "SMS", 0x0 /* task is popped */, buf);
-				return 0;
+				goto receive_next;
 			}
 			else if (err)
 			{
 				ast_log (LOG_WARNING, "[%s] Error parsing incoming message '%s' at position %d: %s\n", PVT_ID(pvt), str, (int)(err_pos - cmgr), err);
-				return 0;
+				goto receive_next_no_delete;
 			}
 
 			ast_debug (1, "[%s] Successfully read SMS message\n", PVT_ID(pvt));
@@ -1248,7 +1277,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 			{
 				ast_log (LOG_ERROR, "[%s] Error decode SMS originator address: '%s', message is '%s'\n", PVT_ID(pvt), oa, str);
 				number = oa;
-				return 0;
+				goto receive_next_no_delete;
 			}
 			else
 				number = from_number_utf8_str;
@@ -1258,7 +1287,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 			if (res < 0)
 			{
 				ast_log (LOG_ERROR, "[%s] Error decode SMS text '%s' from encoding %d, message is '%s'\n", PVT_ID(pvt), msg, msg_enc, str);
-				return 0;
+				goto receive_next_no_delete;
 			}
 			else
 			{
@@ -1273,14 +1302,15 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 				int cnt = smsdb_put(pvt->imsi, number, udh.ref, udh.parts, udh.order, msg, fullmsg);
 				if (cnt <= 0) {
 					ast_log (LOG_ERROR, "[%s] Error putting SMS to SMSDB\n", PVT_ID(pvt));
-					return 0;
+					goto receive_as_is;
 				}
 				if (cnt < udh.parts) {
 					ast_verb (1, "[%s] Waiting for following parts\n", PVT_ID(pvt));
-					return 0;
+					goto receive_next;
 				}
 				fullmsg_len = strlen(fullmsg);
 			} else {
+			receive_as_is:
 				strncpy(fullmsg, msg, msg_len);
 				fullmsg_len = msg_len;
 			}
@@ -1306,6 +1336,13 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 			ast_log (LOG_ERROR, "[%s] Received '+CMGR' when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
 					at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
 		}
+receive_next:
+		if (CONF_SHARED(pvt, autodeletesms) && pvt->incoming_sms_index != -1U)
+		{
+			at_enqueue_delete_sms(&pvt->sys_chan, pvt->incoming_sms_index);
+		}
+receive_next_no_delete:
+		at_retrieve_next_sms(&pvt->sys_chan);
 	}
 	else
 	{
