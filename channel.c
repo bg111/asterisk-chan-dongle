@@ -1019,7 +1019,7 @@ static int channel_devicestate (void* data)
 
 	ast_debug (1, "Checking device state for device %s\n", device);
 
-	pvt = find_device_ext (device, NULL);
+	pvt = find_device_ext(device);
 	if (pvt)
 	{
 		if (pvt->connected)

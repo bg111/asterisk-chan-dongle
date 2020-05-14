@@ -22,6 +22,7 @@
 #include "app.h"		/* app_register() app_unregister() */
 #include "chan_dongle.h"	/* struct pvt */
 #include "helpers.h"		/* send_sms() ITEMS_OF() */
+#include "error.h"
 
 struct ast_channel;
 
@@ -74,9 +75,6 @@ static int app_status_exec (struct ast_channel* channel, const char* data)
 static int app_send_sms_exec (attribute_unused struct ast_channel* channel, const char* data)
 {
 	char*	parse;
-	const char* msg;
-	int status;
-	void * msgid;
 
 	AST_DECLARE_APP_ARGS (args,
 		AST_APP_ARG (device);
@@ -84,6 +82,7 @@ static int app_send_sms_exec (attribute_unused struct ast_channel* channel, cons
 		AST_APP_ARG (message);
 		AST_APP_ARG (validity);
 		AST_APP_ARG (report);
+		AST_APP_ARG (payload);
 	);
 
 	if (ast_strlen_zero (data))
@@ -107,18 +106,16 @@ static int app_send_sms_exec (attribute_unused struct ast_channel* channel, cons
 		return -1;
 	}
 
-	msg = send_sms(args.device, args.number, args.message, args.validity, args.report, &status, &msgid);
-	if(!status)
-		ast_log (LOG_ERROR, "[%s] %s with id %p\n", args.device, msg, msgid);
-	return !status;
+	if (send_sms(args.device, args.number, args.message, args.validity, args.report, args.payload, strlen(args.payload) + 1) < 0) {
+		ast_log(LOG_ERROR, "[%s] %s\n", args.device, error2str(chan_dongle_err));
+		return -1;
+	}
+	return 0;
 }
 
 static int app_send_ussd_exec(attribute_unused struct ast_channel* channel, const char* data)
 {
 	char* parse;
-	const char* msg;
-	int status;
-	void* msgid;
 
 	AST_DECLARE_APP_ARGS(args,
 		 AST_APP_ARG(device);
@@ -146,12 +143,11 @@ static int app_send_ussd_exec(attribute_unused struct ast_channel* channel, cons
 		return -1;
 	}
 
-	msg = send_ussd(args.device, args.ussd, &status, &msgid);
-	if(!status)
-	{
-		ast_log(LOG_ERROR, "[%s] %s with id %p\n", args.device, msg, msgid);
+	if (send_ussd(args.device, args.ussd) < 0) {
+		ast_log(LOG_ERROR, "[%s] %s\n", args.device, error2str(chan_dongle_err));
+		return -1;
 	}
-	return !status;
+	return 0;
 }
 
 
@@ -176,13 +172,14 @@ static const struct dongle_application
 	{
 		"DongleSendSMS",
 		app_send_sms_exec,
-		"DongleSendSMS(Device,Dest,Message,Validity,Report)",
-		"DongleSendSMS(Device,Dest,Message,Validity,Report)\n"
+		"DongleSendSMS(Device,Dest,Message,Validity,Report,Payload)",
+		"DongleSendSMS(Device,Dest,Message,Validity,Report,Payload)\n"
 		"  Device   - Id of device from dongle.conf\n"
 		"  Dest     - destination\n"
 		"  Message  - text of the message\n"
 		"  Validity - Validity period in minutes\n"
 		"  Report   - Boolean flag for report request\n"
+		"  Payload  - Unstructured data that will be included in delivery report\n"
 	},
 	{
 		"DongleSendUSSD",

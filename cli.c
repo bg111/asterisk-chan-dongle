@@ -20,6 +20,7 @@
 #include "chan_dongle.h"			/* devices */
 #include "helpers.h"				/* ITEMS_OF() send_ccwa_set() send_reset() send_sms() send_ussd() */
 #include "pdiscovery.h"				/* pdiscovery_list_begin() pdiscovery_list_next() pdiscovery_list_end() */
+#include "error.h"
 
 static const char * restate2str_msg(restate_time_t when);
 
@@ -215,8 +216,6 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "  Subscriber Number       : %s\n", pvt->subscriber_number);
 		ast_cli (a->fd, "  SMS Service Center      : %s\n", pvt->sms_scenter);
 		ast_cli (a->fd, "  Use UCS-2 encoding      : %s\n", pvt->use_ucs2_encoding ? "Yes" : "No");
-		ast_cli (a->fd, "  USSD use 7 bit encoding : %s\n", pvt->cusd_use_7bit_encoding ? "Yes" : "No");
-		ast_cli (a->fd, "  USSD use UCS-2 decoding : %s\n", pvt->cusd_use_ucs2_decoding ? "Yes" : "No");
 		ast_cli (a->fd, "  Tasks in queue          : %u\n", PVT_STATE(pvt, at_tasks));
 		ast_cli (a->fd, "  Commands in queue       : %u\n", PVT_STATE(pvt, at_cmds));
 		ast_cli (a->fd, "  Call Waiting            : %s\n", pvt->has_call_waiting ? "Enabled" : "Disabled" );
@@ -422,9 +421,6 @@ static char* cli_cmd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 
 static char* cli_ussd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-	int status;
-	void * msgid;
 
 	switch (cmd)
 	{
@@ -449,22 +445,16 @@ static char* cli_ussd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = send_ussd(a->argv[2], a->argv[3], &status, &msgid);
-	if(status)
-		ast_cli (a->fd, "[%s] %s with id %p\n", a->argv[2], msg, msgid);
-	else
-		ast_cli (a->fd, "[%s] %s\n", a->argv[2], msg);
+	int res = send_ussd(a->argv[2], a->argv[3]);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_dongle_err) : "USSD queued for send");
 
 	return CLI_SUCCESS;
 }
 
 static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
 	struct ast_str * buf;
 	int i;
-	int status;
-	void * msgid;
 
 	switch (cmd)
 	{
@@ -501,51 +491,9 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		}
 	}
 
-	msg = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, "1", &status, &msgid);
+	int res = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, "1", "UNKNOWN", 8);
 	ast_free (buf);
-
-	if(status)
-		ast_cli(a->fd, "[%s] %s with id %p\n", a->argv[2], msg, msgid);
-	else
-		ast_cli(a->fd, "[%s] %s\n", a->argv[2], msg);
-
-	return CLI_SUCCESS;
-}
-
-static char * cli_pdu(struct ast_cli_entry * e, int cmd, struct ast_cli_args * a)
-{
-	const char * msg;
-	int status;
-	void * msgid;
-
-	switch (cmd)
-	{
-		case CLI_INIT:
-			e->command = "dongle pdu";
-			e->usage =
-				"Usage: dongle pdu <device> <PDU>\n"
-				"       Send a <PDU> of sms from <device>\n";
-			return NULL;
-
-		case CLI_GENERATE:
-			if (a->pos == 2)
-			{
-				return complete_device (a->word, a->n);
-			}
-			return NULL;
-	}
-
-	if (a->argc != 4)
-	{
-		return CLI_SHOWUSAGE;
-	}
-
-	msg = send_pdu(a->argv[2], a->argv[3], &status, &msgid);
-
-	if(status)
-		ast_cli(a->fd, "[%s] %s with id %p\n", a->argv[2], msg, msgid);
-	else
-		ast_cli(a->fd, "[%s] %s\n", a->argv[2], msg);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_dongle_err) : "SMS queued for send");
 
 	return CLI_SUCCESS;
 }
@@ -559,7 +507,6 @@ typedef char * const * ast_cli_complete2_t;
 static char* cli_ccwa_set (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	static const char * const choices[] = { "enable", "disable", NULL };
-	const char * msg;
 	call_waiting_t enable;
 
 	switch (cmd)
@@ -594,16 +541,14 @@ static char* cli_ccwa_set (struct ast_cli_entry* e, int cmd, struct ast_cli_args
 	else
 		return CLI_SHOWUSAGE;
 
-	msg = send_ccwa_set(a->argv[3], enable, NULL);
-	ast_cli (a->fd, "[%s] %s\n", a->argv[3], msg);
+	int res = send_ccwa_set(a->argv[3], enable);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_dongle_err) : "Call-Waiting commands queued for execute");
 
 	return CLI_SUCCESS;
 }
 
 static char* cli_reset (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-
 	switch (cmd)
 	{
 		case CLI_INIT:
@@ -626,8 +571,8 @@ static char* cli_reset (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = send_reset(a->argv[2], NULL);
-	ast_cli (a->fd, "[%s] %s\n", a->argv[2], msg);
+	int res = send_reset(a->argv[2]);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_dongle_err) : "Reset command queued for execute");
 
 	return CLI_SUCCESS;
 }
@@ -662,7 +607,7 @@ static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_
 		};
 
 	const char * device = NULL;
-	const char * msg;
+	int res;
 	int i;
 
 	switch (cmd)
@@ -712,8 +657,8 @@ static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_
 
 			if(device)
 			{
-				msg = schedule_restart_event(event, i, device, NULL);
-				ast_cli(a->fd, "[%s] %s\n", device, msg);
+				res = schedule_restart_event(event, i, device);
+				ast_cli(a->fd, "[%s] %s\n", device, res < 0 ? error2str(chan_dongle_err) : dev_state2str_msg(event));
 				return CLI_SUCCESS;
 			}
 			break;
@@ -743,8 +688,6 @@ static char * cli_remove(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 #/* */
 static char* cli_start(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-
 	switch (cmd)
 	{
 		case CLI_INIT:
@@ -764,8 +707,8 @@ static char* cli_start(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = schedule_restart_event(DEV_STATE_STARTED, RESTATE_TIME_NOW, a->argv[2], NULL);
-	ast_cli(a->fd, "[%s] %s\n", a->argv[2], msg);
+	int res = schedule_restart_event(DEV_STATE_STARTED, RESTATE_TIME_NOW, a->argv[2]);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_dongle_err) : dev_state2str_msg(DEV_STATE_STARTED));
 
 	return CLI_SUCCESS;
 }
@@ -917,7 +860,6 @@ static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE (cli_cmd,		"Send commands to port for debugging"),
 	AST_CLI_DEFINE (cli_ussd,		"Send USSD commands to the dongle"),
 	AST_CLI_DEFINE (cli_sms,		"Send SMS from the dongle"),
-	AST_CLI_DEFINE (cli_pdu,		"Send PDU of SMS from the dongle"),
 	AST_CLI_DEFINE (cli_ccwa_set,		"Enable/Disable Call-Waiting on the dongle"),
 	AST_CLI_DEFINE (cli_reset,		"Reset dongle now"),
 

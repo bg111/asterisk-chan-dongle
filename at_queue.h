@@ -80,12 +80,13 @@ typedef struct at_queue_task
 	struct cpvt*	cpvt;
 
 	at_queue_cmd_t	cmds[0];
+	int uid;
 } at_queue_task_t;
 
 
 EXPORT_DECL int at_queue_insert_const (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int athead);
 EXPORT_DECL int at_queue_insert (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead);
-EXPORT_DECL int at_queue_insert_task (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, at_queue_task_t ** task);
+EXPORT_DECL int at_queue_insert_uid (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, int uid);
 EXPORT_DECL void at_queue_handle_result (struct pvt * pvt, at_res_t res);
 EXPORT_DECL void at_queue_flush (struct pvt * pvt);
 EXPORT_DECL const at_queue_task_t * at_queue_head_task (const struct pvt * pvt);
