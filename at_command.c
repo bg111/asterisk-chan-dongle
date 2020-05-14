@@ -156,7 +156,7 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 
 		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT,cmd14),	/* GSM registration status setting */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, cmd15),		/* GSM registration status */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CNUM, cmd16),		/* Get Subscriber number */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd16),		/* Get Subscriber number */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CVOICE, cmd17),	/* read the current voice mode, and return sampling rate、data bit、frame period */
 
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, cmd6),		/* Get SMS Service center address */
@@ -683,40 +683,107 @@ EXPORT_DEF int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input)
 }
 
 /*!
+ * \brief Start reading next SMS, if any
+ * \param cpvt -- cpvt structure
+ */
+EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt)
+{
+	pvt_t *pvt = cpvt->pvt;
+	unsigned int i;
+
+	if (pvt->incoming_sms_index != -1U)
+	{
+		/* clear SMS index */
+		i = pvt->incoming_sms_index;
+		pvt->incoming_sms_index = -1U;
+
+		/* clear this message index from inbox */
+		pvt->incoming_sms_inbox[i / 32] &= ~(1U << (i % 32));
+	}
+
+	/* get next message to fetch from inbox */
+	for (i = 0; i != SMS_INDEX_MAX; i++)
+	{
+		if (pvt->incoming_sms_inbox[i / 32] & (1U << (i % 32)))
+			break;
+	}
+
+	if (i == SMS_INDEX_MAX ||
+	    at_enqueue_retrieve_sms(cpvt, i) != 0)
+	{
+		pvt->incoming_sms = 0;
+		pvt_try_restate(pvt);
+	}
+}
+
+/*!
  * \brief Enqueue commands for reading SMS
  * \param cpvt -- cpvt structure
  * \param index -- index of message in store
- * \param delete -- if non-zero also enqueue commands for delete message in store after reading
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, int delete)
+EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index)
 {
+	pvt_t *pvt = cpvt->pvt;
 	int err;
 	at_queue_cmd_t cmds[] = {
 		ATQ_CMD_DECLARE_DYN2(CMD_AT_CMGR, RES_CMGR),
-		ATQ_CMD_DECLARE_DYN(CMD_AT_CMGD)
-		};
-	unsigned cmdsno = ITEMS_OF (cmds);
+	};
+	unsigned cmdsno = ITEMS_OF(cmds);
 
-	err = at_fill_generic_cmd (&cmds[0], "AT+CMGR=%d\r", index);
-	if (err) {
+	if (index < 0 || index >= SMS_INDEX_MAX) {
+		ast_log (LOG_WARNING, "[%s] SMS index [%d] too big\n", PVT_ID(pvt), index);
 		chan_dongle_err = E_UNKNOWN;
 		return -1;
 	}
 
-	if (delete)
-	{
-		err = at_fill_generic_cmd (&cmds[1], "AT+CMGD=%d\r\r", index);
-		if(err)
-		{
-			ast_free (cmds[0].data);
-			chan_dongle_err = E_UNKNOWN;
-			return -1;
-		}
+	/* set that we want to receive this message */
+	pvt->incoming_sms_inbox[index / 32] |= 1U << (index % 32);
+
+	/* check if message is already being received */
+	if (pvt->incoming_sms_index != -1U) {
+		ast_debug (4, "[%s] SMS retrieve of [%d] already in progress\n",
+		    PVT_ID(pvt), pvt->incoming_sms_index);
+		return 0;
 	}
-	else
-	{
-		cmdsno--;
+
+	pvt->incoming_sms_index = index;
+	pvt->incoming_sms = 1;
+
+	err = at_fill_generic_cmd (&cmds[0], "AT+CMGR=%d\r", index);
+	if (err)
+		goto error;
+
+	err = at_queue_insert (cpvt, cmds, cmdsno, 0);
+	if (err)
+		goto error;
+	return 0;
+error:
+	ast_log (LOG_WARNING, "[%s] SMS command error %d\n", PVT_ID(pvt), err);
+	pvt->incoming_sms_index = -1U;
+	pvt->incoming_sms = 0;
+	chan_dongle_err = E_UNKNOWN;
+	return -1;
+}
+
+/*!
+ * \brief Enqueue commands for deleting SMS
+ * \param cpvt -- cpvt structure
+ * \param index -- index of message in store
+ * \return 0 on success
+ */
+EXPORT_DEF int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
+{
+	int err;
+	at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_DYN(CMD_AT_CMGD)
+	};
+	unsigned cmdsno = ITEMS_OF(cmds);
+
+	err = at_fill_generic_cmd (&cmds[0], "AT+CMGD=%d\r", index);
+	if (err) {
+		chan_dongle_err = E_UNKNOWN;
+		return err;
 	}
 
 	if (at_queue_insert(cpvt, cmds, cmdsno, 0) != 0) {

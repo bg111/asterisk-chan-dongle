@@ -274,6 +274,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_CMGR:
 				ast_debug (1, "[%s] SMS message see later\n", PVT_ID(pvt));
+				at_retrieve_next_sms(&pvt->sys_chan);
 				break;
 
 			case CMD_AT_CMGD:
@@ -337,6 +338,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			case CMD_AT_U2DIAG:
 			case CMD_AT_CCWA_SET:
 			case CMD_AT_CCWA_STATUS:
+			case CMD_AT_CNUM:
 				ast_log (LOG_ERROR, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				/* mean ignore error */
 				break;
@@ -380,11 +382,6 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			case CMD_AT_CREG:
 				ast_debug (1, "[%s] Error getting registration info\n", PVT_ID(pvt));
 				break;
-
-			case CMD_AT_CNUM:
-				ast_log (LOG_WARNING, "[%s] Error checking subscriber phone number\n", PVT_ID(pvt));
-				ast_verb (3, "[%s] Dongle needs to be reinitialized. The SIM card is not ready yet\n", PVT_ID(pvt));
-				goto e_return;
 
 			case CMD_AT_CVOICE:
 				ast_debug (1, "[%s] Dongle has NO voice support\n", PVT_ID(pvt));
@@ -481,14 +478,11 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGR:
-				pvt->incoming_sms = 0;
-				pvt_try_restate(pvt);
 				ast_log (LOG_ERROR, "[%s] Error reading SMS message\n", PVT_ID(pvt));
+				at_retrieve_next_sms(&pvt->sys_chan);
 				break;
 
 			case CMD_AT_CMGD:
-				pvt->incoming_sms = 0;
-				pvt_try_restate(pvt);
 				ast_log (LOG_ERROR, "[%s] Error deleting SMS message\n", PVT_ID(pvt));
 				break;
 
@@ -548,7 +542,14 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 	}
 	else if (ecmd)
 	{
-		ast_log (LOG_ERROR, "[%s] Received 'ERROR' when expecting '%s', ignoring\n", PVT_ID(pvt), at_res2str (ecmd->res));
+		switch (ecmd->cmd) {
+		case CMD_AT_CMGR:
+			at_retrieve_next_sms(&pvt->sys_chan);
+			break;
+		default:
+			ast_log (LOG_ERROR, "[%s] Received 'ERROR' when expecting '%s', ignoring\n", PVT_ID(pvt), at_res2str (ecmd->res));
+			break;
+		}
 	}
 	else
 	{
@@ -1158,6 +1159,36 @@ static int at_response_ring (struct pvt* pvt)
 }
 
 /*!
+ * \brief Poll for SMS messages
+ * \param pvt -- pvt structure
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int
+at_poll_sms (struct pvt *pvt)
+{
+	/* poll all SMSs stored in device */
+	if (CONF_SHARED(pvt, disablesms) == 0)
+	{
+		int i;
+
+		for (i = 0; i != SMS_INDEX_MAX; i++)
+		{
+			if (at_enqueue_retrieve_sms(&pvt->sys_chan, i))
+			{
+				ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message #%d\n", PVT_ID(pvt), i);
+				return -1;
+			}
+		}
+		return 0;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+/*!
  * \brief Handle +CMTI response
  * \param pvt -- pvt structure
  * \param str -- string containing response (null terminated)
@@ -1181,49 +1212,10 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 	{
 		ast_debug (1, "[%s] Incoming SMS message\n", PVT_ID(pvt));
 
-		if (pvt_enabled(pvt))
+		if (at_enqueue_retrieve_sms(&pvt->sys_chan, index))
 		{
-			if (at_enqueue_retrieve_sms(&pvt->sys_chan, index, CONF_SHARED(pvt, autodeletesms)))
-			{
-				ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
-				return -1;
-			}
-			pvt->incoming_sms = 1;
-		}
-	}
-	else
-	{
-		/* Not sure why this happens, but we don't want to disconnect standing calls.
-		 * [Jun 14 19:57:57] ERROR[3056]: at_response.c:1173 at_response_cmti:
-		 *   [m1-1] Error parsing incoming sms message alert '+CMTI: "SM",-1' */
-		ast_log(LOG_WARNING, "[%s] Error parsing incoming sms message alert '%s', ignoring\n", PVT_ID(pvt), str);
-	}
-
-	return 0;
-}
-static int at_response_cdsi (struct pvt* pvt, const char* str)
-{
-// FIXME: check format in PDU mode
-	int index = at_parse_cdsi (str);
-
-	if (CONF_SHARED(pvt, disablesms))
-	{
-		ast_log (LOG_WARNING, "[%s] SMS reception has been disabled in the configuration.\n", PVT_ID(pvt));
-		return 0;
-	}
-
-	if (index > -1)
-	{
-		ast_debug (1, "[%s] Incoming SMS message\n", PVT_ID(pvt));
-
-		if (pvt_enabled(pvt))
-		{
-			if (at_enqueue_retrieve_sms (&pvt->sys_chan, index, CONF_SHARED(pvt, autodeletesms)))
-			{
-				ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
-				return -1;
-			}
-			pvt->incoming_sms = 1;
+			ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
+			return -1;
 		}
 	}
 	else
@@ -1272,8 +1264,6 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 	if (ecmd) {
 		if (ecmd->res == RES_CMGR || ecmd->cmd == CMD_USER) {
 			at_queue_handle_result (pvt, RES_CMGR);
-			pvt->incoming_sms = 0;
-			pvt_try_restate(pvt);
 
 			res = at_parse_cmgr(str, len, &tpdu_type, sca, sizeof(sca), oa, sizeof(oa), scts, &mr, &st, dt, msg, &msg_len, &udh);
 			if (res < 0) {
@@ -1318,14 +1308,15 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 					csms_cnt = smsdb_put(pvt->imsi, oa, udh.ref, udh.parts, udh.order, msg, fullmsg);
 					if (csms_cnt <= 0) {
 						ast_log(LOG_ERROR, "[%s] Error putting SMS to SMSDB\n", PVT_ID(pvt));
-						return 0;
+						goto receive_as_is;
 					}
 					if (csms_cnt < udh.parts) {
 						ast_verb (1, "[%s] Waiting for following parts\n", PVT_ID(pvt));
-						return 0;
+						goto receive_next;
 					}
 					fullmsg_len = strlen(fullmsg);
 				} else {
+receive_as_is:
 					ast_verb (1, "[%s] Got signle SM from %s: '%s'\n", PVT_ID(pvt), oa, msg);
 					strncpy(fullmsg, msg, msg_len);
 					fullmsg[msg_len] = '\0';
@@ -1355,6 +1346,13 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 			ast_log (LOG_ERROR, "[%s] Received '+CMGR' when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
 					at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
 		}
+receive_next:
+		if (CONF_SHARED(pvt, autodeletesms) && pvt->incoming_sms_index != -1U)
+		{
+			at_enqueue_delete_sms(&pvt->sys_chan, pvt->incoming_sms_index);
+		}
+receive_next_no_delete:
+		at_retrieve_next_sms(&pvt->sys_chan);
 	}
 	else
 	{
