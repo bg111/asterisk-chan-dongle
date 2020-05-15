@@ -1230,6 +1230,47 @@ static int at_response_cmti (struct pvt* pvt, const char* str)
 }
 
 /*!
+ * \brief Handle +CDSI response
+ * \param pvt -- pvt structure
+ * \param str -- string containing response (null terminated)
+ * \param len -- string lenght
+ * \retval  0 success
+ * \retval -1 error
+ */
+
+static int at_response_cdsi (struct pvt* pvt, const char* str)
+{
+// FIXME: check format in PDU mode
+	int index = at_parse_cdsi (str);
+
+	if (CONF_SHARED(pvt, disablesms))
+	{
+		ast_log (LOG_WARNING, "[%s] SMS reception has been disabled in the configuration.\n", PVT_ID(pvt));
+		return 0;
+	}
+
+	if (index > -1)
+	{
+		ast_debug (1, "[%s] Incoming SMS message\n", PVT_ID(pvt));
+
+		if (at_enqueue_retrieve_sms(&pvt->sys_chan, index))
+		{
+			ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
+			return -1;
+		}
+	}
+	else
+	{
+		/* Not sure why this happens, but we don't want to disconnect standing calls.
+		 * [Jun 14 19:57:57] ERROR[3056]: at_response.c:1173 at_response_cmti:
+		 *   [m1-1] Error parsing incoming sms message alert '+CMTI: "SM",-1' */
+		ast_log(LOG_WARNING, "[%s] Error parsing incoming sms message alert '%s', ignoring\n", PVT_ID(pvt), str);
+	}
+
+	return 0;
+}
+
+/*!
  * \brief Handle +CMGR response
  * \param pvt -- pvt structure
  * \param str -- string containing response (null terminated)
