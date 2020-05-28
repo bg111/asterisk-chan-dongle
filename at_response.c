@@ -496,7 +496,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 					char dst[SMSDB_DST_MAX_LEN];
 					ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
 					if (payload_len >= 0) {
-						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), payload_len, payload);
+						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
 						channel_var_t vars[] =
 						{
 							{ "SMS_REPORT_PAYLOAD", payload },
@@ -1284,7 +1284,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 	char		oa[512] = "", sca[512] = "";
 	char scts[64], dt[64];
 	int mr, st;
-	char*		msg[4096];
+	char		msg[4096];
 	int		res;
 	char		text_base64[40800];
 	size_t		msg_len;
@@ -1309,7 +1309,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 			res = at_parse_cmgr(str, len, &tpdu_type, sca, sizeof(sca), oa, sizeof(oa), scts, &mr, &st, dt, msg, &msg_len, &udh);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "[%s] Error parsing incoming message: %s\n", PVT_ID(pvt), error2str(chan_dongle_err));
-				return 0;
+				goto receive_next_no_delete;
 			}
 			switch (PDUTYPE_MTI(tpdu_type)) {
 			case PDUTYPE_MTI_SMS_STATUS_REPORT:
@@ -1326,7 +1326,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 						srroff += 4;
 					}
 					status_report_str[srroff] = '\0';
-					ast_verb(1, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, payload_len, payload, status_report_str);
+					ast_verb(1, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, (int) payload_len, payload, status_report_str);
 					payload[payload_len] = '\0';
 					channel_var_t vars[] =
 					{
@@ -1358,7 +1358,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 					fullmsg_len = strlen(fullmsg);
 				} else {
 receive_as_is:
-					ast_verb (1, "[%s] Got signle SM from %s: '%s'\n", PVT_ID(pvt), oa, msg);
+					ast_verb (1, "[%s] Got single SM from %s: '%s'\n", PVT_ID(pvt), oa, msg);
 					strncpy(fullmsg, msg, msg_len);
 					fullmsg[msg_len] = '\0';
 					fullmsg_len = msg_len;
@@ -1504,6 +1504,8 @@ static int at_response_cusd (struct pvt * pvt, char * str, size_t len)
 	} else if (dcs == 2) { // UCS-2
 		int cusd_nibbles = unhex(cusd, cusd);
 		res = ucs2_to_utf8(out_ucs2, (cusd_nibbles + 1) / 4, cusd_utf8_str, sizeof(cusd_utf8_str) - 1);
+	} else {
+		res = -1;
 	}
 	if (res < 0) {
 		return -1;
@@ -1853,7 +1855,7 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 					char dst[SMSDB_DST_MAX_LEN];
 					ssize_t payload_len = smsdb_outgoing_part_put(task->uid, res, dst, payload);
 					if (payload_len >= 0) {
-						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), payload_len, payload);
+						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
 						channel_var_t vars[] =
 						{
 							{ "SMS_REPORT_PAYLOAD", payload },

@@ -23,7 +23,7 @@
 static int is_valid_ussd_string(const char* number)
 {
 	for (; *number; number++) {
-		if (*number >= '0' && *number <= '9' || *number == '*' || *number == '#') {
+		if ((*number >= '0' && *number <= '9') || *number == '*' || *number == '#') {
 			continue;
 		}
 		return 0;
