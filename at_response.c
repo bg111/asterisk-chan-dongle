@@ -1284,7 +1284,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 	char		oa[512] = "", sca[512] = "";
 	char scts[64], dt[64];
 	int mr, st;
-	char*		msg[4096];
+	char		msg[4096];
 	int		res;
 	char		text_base64[40800];
 	size_t		msg_len;
@@ -1358,7 +1358,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 					fullmsg_len = strlen(fullmsg);
 				} else {
 receive_as_is:
-					ast_verb (1, "[%s] Got signle SM from %s: '%s'\n", PVT_ID(pvt), oa, msg);
+					ast_verb (1, "[%s] Got single SM from %s: '%s'\n", PVT_ID(pvt), oa, msg);
 					strncpy(fullmsg, msg, msg_len);
 					fullmsg[msg_len] = '\0';
 					fullmsg_len = msg_len;
