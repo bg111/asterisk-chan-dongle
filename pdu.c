@@ -882,7 +882,8 @@ EXPORT_DEF int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type
 						chan_dongle_err = E_UNKNOWN;
 						return -1;
 					}
-					udh->ref = (pdu[i++] << 8) | pdu[i++];
+					udh->ref = (pdu[i++] << 8);
+					udh->ref |= pdu[i++];
 					udh->parts = pdu[i++];
 					udh->order = pdu[i++];
 					udhl -= 4;
