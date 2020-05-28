@@ -239,7 +239,6 @@ EXPORT_DEF int at_enqueue_cops(struct cpvt *cpvt)
 /* SMS sending */
 static int at_enqueue_pdu(struct cpvt *cpvt, const char *pdu, size_t length, size_t tpdulen, int uid)
 {
-	char * ptr = (char *) pdu;
 	char buf[8+25+1];
 	at_queue_cmd_t at_cmd[] = {
 		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0 },
@@ -338,7 +337,6 @@ EXPORT_DEF int at_enqueue_ussd(struct cpvt *cpvt, const char *code)
 	ssize_t res;
 	int length;
 	char buf[4096];
-	pvt_t* pvt = cpvt->pvt;
 
 	memcpy (buf, cmd, STRLEN(cmd));
 	length = STRLEN(cmd);
@@ -607,7 +605,6 @@ EXPORT_DEF int at_enqueue_activate(struct cpvt *cpvt)
 		ATQ_CMD_DECLARE_DYN(CMD_AT_CHLD_2x),
 		ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc),
 		};
-	int err;
 
 	if (cpvt->state == CALL_STATE_ACTIVE)
 		return 0;

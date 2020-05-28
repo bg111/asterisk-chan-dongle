@@ -374,7 +374,7 @@ static int pdu_relative_validity(unsigned minutes)
  */
 static int pdu_store_number(uint8_t* buffer, int toa, const char *number, unsigned length)
 {
-	int i = 0, res;
+	int i = 0;
 	buffer[i++] = toa;
 
 	int j;
@@ -684,7 +684,6 @@ EXPORT_DEF int tpdu_parse_type(uint8_t *pdu, size_t pdu_length, int *type)
 EXPORT_DEF int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr, char *ra, size_t ra_len, char *scts, char *dt, int *st)
 {
 	int i = 0, field_len;
-	const char *ret = NULL;
 	if (i + 2 > pdu_length) {
 		chan_dongle_err = E_UNKNOWN;
 		return -1;
@@ -709,7 +708,7 @@ EXPORT_DEF int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr
 }
 EXPORT_DEF int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa, size_t oa_len, char *scts, uint16_t *msg, pdu_udh_t *udh)
 {
-	int i = 0, field_len, oa_digits, pid, dcs, alphabet, ts, udl, udhl, msg_padding = 0;
+	int i = 0, field_len, oa_digits, pid, dcs, alphabet, udl, udhl, msg_padding = 0;
 
 	if (i + 1 > pdu_length) {
 		chan_dongle_err = E_UNKNOWN;

@@ -966,7 +966,6 @@ EXPORT_DEF struct pvt * find_device_ex(struct public_state * state, const char *
 #/* return locked pvt or NULL */
 EXPORT_DEF struct pvt * find_device_ext (const char * name)
 {
-	char * res = "";
 	struct pvt * pvt = find_device(name);
 
 	if (pvt) {
