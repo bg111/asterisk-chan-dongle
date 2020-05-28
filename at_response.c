@@ -1504,6 +1504,8 @@ static int at_response_cusd (struct pvt * pvt, char * str, size_t len)
 	} else if (dcs == 2) { // UCS-2
 		int cusd_nibbles = unhex(cusd, cusd);
 		res = ucs2_to_utf8(out_ucs2, (cusd_nibbles + 1) / 4, cusd_utf8_str, sizeof(cusd_utf8_str) - 1);
+	} else {
+		res = -1;
 	}
 	if (res < 0) {
 		return -1;
