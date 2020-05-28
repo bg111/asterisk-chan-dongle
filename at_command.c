@@ -711,7 +711,6 @@ EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt)
 	if (i == SMS_INDEX_MAX ||
 	    at_enqueue_retrieve_sms(cpvt, i) != 0)
 	{
-		pvt->incoming_sms = 0;
 		pvt_try_restate(pvt);
 	}
 }
@@ -748,7 +747,6 @@ EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index)
 	}
 
 	pvt->incoming_sms_index = index;
-	pvt->incoming_sms = 1;
 
 	err = at_fill_generic_cmd (&cmds[0], "AT+CMGR=%d\r", index);
 	if (err)
@@ -761,7 +759,6 @@ EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index)
 error:
 	ast_log (LOG_WARNING, "[%s] SMS command error %d\n", PVT_ID(pvt), err);
 	pvt->incoming_sms_index = -1U;
-	pvt->incoming_sms = 0;
 	chan_dongle_err = E_UNKNOWN;
 	return -1;
 }

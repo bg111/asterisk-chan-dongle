@@ -333,7 +333,6 @@ static void disconnect_dongle (struct pvt* pvt)
 	pvt->ring = 0;
 	pvt->cwaiting = 0;
 	pvt->outgoing_sms = 0;
-	pvt->incoming_sms = 0;
 	pvt->incoming_sms_index = -1U;
 	pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
 
@@ -1253,7 +1252,7 @@ EXPORT_DEF const char* pvt_str_state(const struct pvt* pvt)
 			state = pvt_call_dir(pvt);
 		else if(PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0)
 			state = "Held";
-		else if(pvt->outgoing_sms || pvt->incoming_sms)
+		else if(pvt->outgoing_sms || pvt->incoming_sms_index != -1U)
 			state = "SMS";
 		else
 			state = "Free";
@@ -1291,7 +1290,7 @@ EXPORT_DEF struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
 		if(PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0)
 			ast_str_append (&buf, 0, "Held %u ", PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]));
 
-		if(pvt->incoming_sms)
+		if(pvt->incoming_sms_index != -1U)
 			ast_str_append (&buf, 0, "Incoming SMS ");
 
 		if(pvt->outgoing_sms)
@@ -1476,7 +1475,7 @@ static int pvt_time4restate(const struct pvt * pvt)
 {
 	if(pvt->desired_state != pvt->current_state)
 	{
-		if(pvt->restart_time == RESTATE_TIME_NOW || (PVT_NO_CHANS(pvt) && !pvt->outgoing_sms && !pvt->incoming_sms))
+		if(pvt->restart_time == RESTATE_TIME_NOW || (PVT_NO_CHANS(pvt) && !pvt->outgoing_sms && pvt->incoming_sms_index == -1U))
 			return 1;
 	}
 	return 0;

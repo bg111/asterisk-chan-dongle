@@ -172,7 +172,6 @@ typedef struct pvt
 	unsigned int		ring:1;				/*!< HW state; true if has incoming call from first RING until CEND or CONN */
 	unsigned int		cwaiting:1;			/*!< HW state; true if has incoming call waiting from first CCWA until CEND or CONN for */
 	unsigned int		outgoing_sms:1;			/*!< outgoing sms */
-	unsigned int		incoming_sms:1;			/*!< incoming sms */
 	unsigned int		volume_sync_step:2;		/*!< volume synchronized stage */
 #define VOLUME_SYNC_BEGIN	0
 #define VOLUME_SYNC_DONE	3
