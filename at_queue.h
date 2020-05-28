@@ -79,8 +79,9 @@ typedef struct at_queue_task
 	unsigned	cindex;
 	struct cpvt*	cpvt;
 
-	at_queue_cmd_t	cmds[0];
 	int uid;
+
+	at_queue_cmd_t	cmds[0];	/* this field must be last */
 } at_queue_task_t;
 
 
