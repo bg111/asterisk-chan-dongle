@@ -1309,7 +1309,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 			res = at_parse_cmgr(str, len, &tpdu_type, sca, sizeof(sca), oa, sizeof(oa), scts, &mr, &st, dt, msg, &msg_len, &udh);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "[%s] Error parsing incoming message: %s\n", PVT_ID(pvt), error2str(chan_dongle_err));
-				return 0;
+				goto receive_next_no_delete;
 			}
 			switch (PDUTYPE_MTI(tpdu_type)) {
 			case PDUTYPE_MTI_SMS_STATUS_REPORT:
