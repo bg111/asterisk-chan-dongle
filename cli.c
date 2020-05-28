@@ -413,8 +413,8 @@ static char* cli_cmd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = send_at_command(a->argv[2], a->argv[3]);
-	ast_cli (a->fd, "[%s] '%s' %s\n", a->argv[2], a->argv[3], msg);
+	int res = send_at_command(a->argv[2], a->argv[3]);
+	ast_cli (a->fd, "[%s] '%s' %s\n", a->argv[2], a->argv[3], res < 0 ? error2str(chan_dongle_err) : "AT command queued");
 
 	return CLI_SUCCESS;
 }
