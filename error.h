@@ -5,6 +5,7 @@
 #ifndef ERROR_H_INCLUDED
 #define ERROR_H_INCLUDED
 #include "export.h"				/* EXPORT_DECL EXPORT_DEF */
+#include "mutils.h"
 
 enum error {
 	E_UNKNOWN = 0,
