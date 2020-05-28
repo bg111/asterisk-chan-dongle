@@ -80,11 +80,11 @@ EXPORT_DEF ssize_t ucs2_to_utf8(const uint16_t *in, size_t in_length, char *out,
 }
 
 
-static char hexchar2val(char h)
+static char hexchar2val(unsigned char h)
 {
 	return lut_hex2val[h];
 }
-static char val2hexchar(char h)
+static char val2hexchar(unsigned char h)
 {
 	return lut_val2hex[h];
 }

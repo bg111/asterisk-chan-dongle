@@ -377,7 +377,7 @@ static void handle_expired_reports(struct pvt *pvt)
 	char payload[SMSDB_PAYLOAD_MAX_LEN];
 	ssize_t payload_len = smsdb_outgoing_purge_one(dst, payload);
 	if (payload_len >= 0) {
-		ast_verb (3, "[%s] TTL payload: %.*s\n", PVT_ID(pvt), payload_len, payload);
+		ast_verb (3, "[%s] TTL payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
 		channel_var_t vars[] =
 		{
 			{ "SMS_REPORT_PAYLOAD", payload },

@@ -200,7 +200,7 @@ EXPORT_DEF void manager_event_report(const char * devname, const char *payload, 
 		"Type: %d\r\n"
 		"Report: %s\r\n",
 		devname,
-		payload_len, payload,
+		(int) payload_len, payload,
 		scts, dt,
 		success,
 		type,

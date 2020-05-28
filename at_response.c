@@ -496,7 +496,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 					char dst[SMSDB_DST_MAX_LEN];
 					ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
 					if (payload_len >= 0) {
-						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), payload_len, payload);
+						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
 						channel_var_t vars[] =
 						{
 							{ "SMS_REPORT_PAYLOAD", payload },
@@ -1326,7 +1326,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 						srroff += 4;
 					}
 					status_report_str[srroff] = '\0';
-					ast_verb(1, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, payload_len, payload, status_report_str);
+					ast_verb(1, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, (int) payload_len, payload, status_report_str);
 					payload[payload_len] = '\0';
 					channel_var_t vars[] =
 					{
@@ -1855,7 +1855,7 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 					char dst[SMSDB_DST_MAX_LEN];
 					ssize_t payload_len = smsdb_outgoing_part_put(task->uid, res, dst, payload);
 					if (payload_len >= 0) {
-						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), payload_len, payload);
+						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
 						channel_var_t vars[] =
 						{
 							{ "SMS_REPORT_PAYLOAD", payload },
