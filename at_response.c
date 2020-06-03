@@ -28,8 +28,6 @@
 #include "smsdb.h"
 #include "error.h"
 
-#define DEF_STR(str)	str,STRLEN(str)
-
 #define CCWA_STATUS_NOT_ACTIVE	0
 #define CCWA_STATUS_ACTIVE	1
 
@@ -37,59 +35,17 @@
 #define CLCC_CALL_TYPE_DATA	1
 #define CLCC_CALL_TYPE_FAX	2
 
-/* magic!!! must be in same order as elements of enums in at_res_t */
 static const at_response_t at_responses_list[] = {
-	{ RES_PARSE_ERROR,"PARSE ERROR", 0, 0 },
-	{ RES_UNKNOWN,"UNKNOWN", 0, 0 },
 
-	{ RES_BOOT,"^BOOT",DEF_STR("^BOOT:") },
-	{ RES_BUSY,"BUSY",DEF_STR("BUSY\r") },
-	{ RES_CEND,"^CEND",DEF_STR("^CEND:") },
+	AT_RESPONSES_TABLE(AT_RES_AS_STRUCTLIST)
 
-	{ RES_CMGR, "+CMGR",DEF_STR("+CMGR:") },
-	{ RES_CMS_ERROR, "+CMS ERROR",DEF_STR("+CMS ERROR:") },
-	{ RES_CMTI, "+CMTI",DEF_STR("+CMTI:") },
-	{ RES_CDSI, "+CDSI",DEF_STR("+CDSI:") },
-	{ RES_CNUM, "+CNUM",DEF_STR("+CNUM:") },		/* and "ERROR+CNUM:" */
-
-	{ RES_CONF,"^CONF",DEF_STR("^CONF:") },
-	{ RES_CONN,"^CONN",DEF_STR("^CONN:") },
-	{ RES_COPS,"+COPS",DEF_STR("+COPS:") },
-	{ RES_CPIN,"+CPIN",DEF_STR("+CPIN:") },
-
-	{ RES_CREG,"+CREG",DEF_STR("+CREG:") },
-	{ RES_CSQ,"+CSQ",DEF_STR("+CSQ:") },
-	{ RES_CSSI,"+CSSI",DEF_STR("+CSSI:") },
-	{ RES_CSSU,"+CSSU",DEF_STR("+CSSU:") },
-
-	{ RES_CUSD,"+CUSD",DEF_STR("+CUSD:") },
-	{ RES_ERROR,"ERROR",DEF_STR("ERROR\r") },		/* and "COMMAND NOT SUPPORT\r" */
-	{ RES_MODE,"^MODE",DEF_STR("^MODE:") },
-	{ RES_NO_CARRIER,"NO CARRIER",DEF_STR("NO CARRIER\r") },
-
-	{ RES_NO_DIALTONE,"NO DIALTONE",DEF_STR("NO DIALTONE\r") },
-	{ RES_OK,"OK",DEF_STR("OK\r") },
-	{ RES_ORIG,"^ORIG",DEF_STR("^ORIG:") },
-	{ RES_RING,"RING",DEF_STR("RING\r") },
-
-	{ RES_RSSI,"^RSSI",DEF_STR("^RSSI:") },
-	{ RES_SMMEMFULL,"^SMMEMFULL",DEF_STR("^SMMEMFULL:") },
-	{ RES_SMS_PROMPT,"> ",DEF_STR("> ") },
-	{ RES_SRVST,"^SRVST",DEF_STR("^SRVST:") },
-
-	{ RES_CVOICE,"^CVOICE",DEF_STR("^CVOICE:") },
-	{ RES_CMGS,"+CMGS",DEF_STR("+CMGS:") },
-	{ RES_CPMS,"+CPMS",DEF_STR("+CPMS:") },
-	{ RES_CSCA,"+CSCA",DEF_STR("+CSCA:") },
-
-	{ RES_CLCC,"+CLCC", DEF_STR("+CLCC:") },
-	{ RES_CCWA,"+CCWA", DEF_STR("+CCWA:") },
-
-	/* duplicated response undef other id */
+	/* The hackish way to define the duplicated responses in the meantime */
+#define DEF_STR(str)	str,STRLEN(str)
 	{ RES_CNUM, "+CNUM",DEF_STR("ERROR+CNUM:") },
 	{ RES_ERROR,"ERROR",DEF_STR("COMMAND NOT SUPPORT\r") },
-	};
 #undef DEF_STR
+	};
+
 
 EXPORT_DEF const at_responses_t at_responses = { at_responses_list, 2, ITEMS_OF(at_responses_list), RES_MIN, RES_MAX};
 
