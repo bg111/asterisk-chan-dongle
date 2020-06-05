@@ -106,6 +106,12 @@ static int app_send_sms_exec (attribute_unused struct ast_channel* channel, cons
 		return -1;
 	}
 
+	if (ast_strlen_zero(args.payload))
+	{
+		ast_log(LOG_ERROR, "NULL payload for message -- SMS will not be sent\n");
+		return -1;
+	}
+
 	if (send_sms(args.device, args.number, args.message, args.validity, args.report, args.payload, strlen(args.payload) + 1) < 0) {
 		ast_log(LOG_ERROR, "[%s] %s\n", args.device, error2str(chan_dongle_err));
 		return -1;
