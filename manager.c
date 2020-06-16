@@ -156,7 +156,7 @@ static int manager_send_sms (struct mansession* s, const struct message* m)
 {
 	const char*	device	= astman_get_header (m, "Device");
 	const char*	number	= astman_get_header (m, "Number");
-	const char*	message	= astman_get_header (m, "Message");
+	const char*	message	= astman_get_header (m, "Message"); /* may contain C-escapes */
 	const char*	validity= astman_get_header (m, "Validity");
 	const char*	report	= astman_get_header (m, "Report");
 	const char*	payload	= astman_get_header (m, "Payload");
@@ -181,7 +181,17 @@ static int manager_send_sms (struct mansession* s, const struct message* m)
 		return 0;
 	}
 
-	int res = send_sms(device, number, message, validity, report, payload, strlen(payload) + 1);
+	char* unescaped_msg = ast_strdup(message);
+
+	if (unescaped_msg == NULL)
+	{
+		astman_send_error (s, m, "Internal memory error");
+		return 0;
+	}
+
+	ast_unescape_c(unescaped_msg);
+	int res = send_sms(device, number, unescaped_msg, validity, report, payload, strlen(payload) + 1);
+	ast_free(unescaped_msg);
 	snprintf(buf, sizeof (buf), "[%s] %s", device, res < 0 ? error2str(chan_dongle_err) : "SMS queued for send");
 	(res == 0 ? astman_send_ack : astman_send_error)(s, m, buf);
 
@@ -581,7 +591,7 @@ static const struct dongle_manager
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
 	"	*Device:  <device>	The dongle to which the SMS be send.\n"
 	"	*Number:  <number>	The phone number to which the SMS will be sent.\n"
-	"	*Message: <message>	The SMS message that will be sent.\n"
+	"	*Message: <message>	The SMS message that will be sent (standard backslash escape sequences are used, e.g. '\\n' for newline).\n"
 	"	*Validity: <message>	Validity period in minutes.\n"
 	"	*Report: <message>	Boolean flag for report request.\n"
 	"	*Payload: <message>	Unstructured data that will be included in delivery report.\n"
