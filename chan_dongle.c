@@ -349,6 +349,50 @@ static void disconnect_dongle (struct pvt* pvt)
 	manager_event_device_status(PVT_ID(pvt), "Disconnect");
 }
 
+#define SMS_INBOX_BIT(index)    ((sms_inbox_item_type)(1) << (index % SMS_INBOX_ITEM_BITS))
+#define SMS_INBOX_INDEX(index)  (index / SMS_INBOX_ITEM_BITS)
+
+static int is_sms_inbox_index_valid(const struct pvt* pvt, int index)
+{
+	if (index < 0 || index >= (int) SMS_INDEX_MAX) {
+		ast_log(LOG_WARNING, "[%s] SMS index [%d] out of range\n", PVT_ID(pvt), index);
+		return 0;
+	}
+
+	return 1;
+}
+
+EXPORT_DEF int sms_inbox_set(struct pvt* pvt, int index)
+{
+	if (!is_sms_inbox_index_valid(pvt, index)) {
+		return 0;
+	}
+
+	pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] |= SMS_INBOX_BIT(index);
+	return 1;
+}
+
+EXPORT_DEF int sms_inbox_clear(struct pvt* pvt, int index)
+{
+	if (!is_sms_inbox_index_valid(pvt, index)) {
+		return 0;
+	}
+
+	pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] &= ~SMS_INBOX_BIT(index);
+	return 1;
+}
+
+EXPORT_DEF int is_sms_inbox_set(const struct pvt* pvt, int index)
+{
+	if (!is_sms_inbox_index_valid(pvt, index)) {
+		return 0;
+	}
+
+	return pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] & SMS_INBOX_BIT(index);
+}
+
+#undef SMS_INBOX_INDEX
+#undef SMS_INBOX_BIT
 
 /* anybody wrote some to device before me, and not read results, clean pending results here */
 #/* */

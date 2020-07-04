@@ -695,13 +695,13 @@ EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt)
 		pvt->incoming_sms_index = -1U;
 
 		/* clear this message index from inbox */
-		pvt->incoming_sms_inbox[i / 32] &= ~(1U << (i % 32));
+		sms_inbox_clear(pvt, i);
 	}
 
 	/* get next message to fetch from inbox */
 	for (i = 0; i != SMS_INDEX_MAX; i++)
 	{
-		if (pvt->incoming_sms_inbox[i / 32] & (1U << (i % 32)))
+		if (is_sms_inbox_set(pvt, i))
 			break;
 	}
 
@@ -727,14 +727,11 @@ EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index)
 	};
 	unsigned cmdsno = ITEMS_OF(cmds);
 
-	if (index < 0 || index >= SMS_INDEX_MAX) {
-		ast_log (LOG_WARNING, "[%s] SMS index [%d] too big\n", PVT_ID(pvt), index);
+	/* set that we want to receive this message */
+	if (!sms_inbox_set(pvt, index)) {
 		chan_dongle_err = E_UNKNOWN;
 		return -1;
 	}
-
-	/* set that we want to receive this message */
-	pvt->incoming_sms_inbox[index / 32] |= 1U << (index % 32);
 
 	/* check if message is already being received */
 	if (pvt->incoming_sms_index != -1U) {
