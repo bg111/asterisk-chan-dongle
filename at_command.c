@@ -683,7 +683,7 @@ EXPORT_DEF int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input)
  * \brief Start reading next SMS, if any
  * \param cpvt -- cpvt structure
  */
-EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt)
+EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error)
 {
 	pvt_t *pvt = cpvt->pvt;
 	unsigned int i;
@@ -706,7 +706,7 @@ EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt)
 	}
 
 	if (i == SMS_INDEX_MAX ||
-	    at_enqueue_retrieve_sms(cpvt, i) != 0)
+	    at_enqueue_retrieve_sms(cpvt, i, suppress_error) != 0)
 	{
 		pvt_try_restate(pvt);
 	}
@@ -718,7 +718,7 @@ EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt)
  * \param index -- index of message in store
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index)
+EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error)
 {
 	pvt_t *pvt = cpvt->pvt;
 	int err;
@@ -726,6 +726,10 @@ EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index)
 		ATQ_CMD_DECLARE_DYN2(CMD_AT_CMGR, RES_CMGR),
 	};
 	unsigned cmdsno = ITEMS_OF(cmds);
+
+	if (suppress_error == SUPPRESS_ERROR_ENABLED) {
+		cmds[0].flags |= ATQ_CMD_FLAG_SUPPRESS_ERROR;
+	}
 
 	/* set that we want to receive this message */
 	if (!sms_inbox_set(pvt, index)) {

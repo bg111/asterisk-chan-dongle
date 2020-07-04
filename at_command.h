@@ -80,6 +80,11 @@ typedef enum {
 	AT_COMMANDS_TABLE(AT_CMD_AS_ENUM)
 } at_cmd_t;
 
+typedef enum {
+	SUPPRESS_ERROR_DISABLED,
+	SUPPRESS_ERROR_ENABLED
+} at_cmd_suppress_error_t;
+
 /*!
  * \brief Get the string representation of the given AT command
  * \param cmd -- the command to process
@@ -108,8 +113,8 @@ EXPORT_DECL int at_enqueue_reset(struct cpvt *cpvt);
 EXPORT_DECL int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir);
 EXPORT_DECL int at_enqueue_answer(struct cpvt *cpvt);
 EXPORT_DECL int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input);
-EXPORT_DECL void at_retrieve_next_sms(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index);
+EXPORT_DECL void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error);
+EXPORT_DECL int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error);
 EXPORT_DECL int at_enqueue_delete_sms(struct cpvt *cpvt, int index);
 EXPORT_DECL int at_enqueue_hangup(struct cpvt *cpvt, int call_idx);
 EXPORT_DECL int at_enqueue_volsync(struct cpvt *cpvt);
