@@ -102,6 +102,11 @@ typedef struct pvt_stat
 
 struct at_queue_task;
 
+typedef unsigned int sms_inbox_item_type;
+
+#define SMS_INBOX_ITEM_BITS     (sizeof(sms_inbox_item_type) * 8)
+#define SMS_INBOX_ARRAY_SIZE    ((SMS_INDEX_MAX + SMS_INBOX_ITEM_BITS - 1) / SMS_INBOX_ITEM_BITS)
+
 typedef struct pvt
 {
 	AST_LIST_ENTRY (pvt)	entry;				/*!< linked list pointers */
@@ -163,7 +168,7 @@ typedef struct pvt
 	char			sms_scenter[20];
 
 	unsigned int		incoming_sms_index;
-	unsigned int		incoming_sms_inbox[(SMS_INDEX_MAX + 31) / 32];
+	sms_inbox_item_type	incoming_sms_inbox[SMS_INBOX_ARRAY_SIZE];
 
 	volatile unsigned int	connected:1;			/*!< do we have an connection to a device */
 	unsigned int		initialized:1;			/*!< whether a service level connection exists or not */
@@ -221,6 +226,10 @@ typedef struct public_state
 } public_state_t;
 
 EXPORT_DECL public_state_t * gpublic;
+
+EXPORT_DEF int sms_inbox_set(struct pvt* pvt, int index);
+EXPORT_DEF int sms_inbox_clear(struct pvt* pvt, int index);
+EXPORT_DEF int is_sms_inbox_set(const struct pvt* pvt, int index);
 
 EXPORT_DECL void clean_read_data(const char * devname, int fd);
 EXPORT_DECL int pvt_get_pseudo_call_idx(const struct pvt * pvt);

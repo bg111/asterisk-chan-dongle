@@ -20,9 +20,10 @@ typedef struct at_queue_cmd
 	at_res_t		res;			/*!< expected response code, can be RES_OK, RES_CMGR, RES_SMS_PROMPT */
 
 	unsigned		flags;			/*!< flags */
-#define ATQ_CMD_FLAG_DEFAULT	0x00				/*!< empty flags */
-#define ATQ_CMD_FLAG_STATIC	0x01				/*!< data is static no try deallocate */
-#define ATQ_CMD_FLAG_IGNORE	0x02				/*!< ignore response non match condition */
+#define ATQ_CMD_FLAG_DEFAULT		0x00		/*!< empty flags */
+#define ATQ_CMD_FLAG_STATIC		0x01		/*!< data is static no try deallocate */
+#define ATQ_CMD_FLAG_IGNORE		0x02		/*!< ignore response non match condition */
+#define ATQ_CMD_FLAG_SUPPRESS_ERROR	0x04		/*!< don't print error message if command fails */
 
 	struct timeval		timeout;		/*!< timeout value, started at time when command actually written on device */
 #define ATQ_CMD_TIMEOUT_SHORT	1		/*!< timeout value  1 sec */
@@ -94,6 +95,11 @@ EXPORT_DECL const at_queue_task_t * at_queue_head_task (const struct pvt * pvt);
 EXPORT_DECL const at_queue_cmd_t * at_queue_head_cmd(const struct pvt * pvt);
 EXPORT_DECL int at_queue_timeout(const struct pvt * pvt);
 EXPORT_DECL int at_queue_run (struct pvt * pvt);
+
+INLINE_DECL at_cmd_suppress_error_t at_cmd_suppress_error_mode(int flags)
+{
+	return ((flags & ATQ_CMD_FLAG_SUPPRESS_ERROR) ? SUPPRESS_ERROR_ENABLED : SUPPRESS_ERROR_DISABLED);
+}
 
 static inline const at_queue_cmd_t * at_queue_task_cmd (const at_queue_task_t * task)
 {
