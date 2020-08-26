@@ -119,7 +119,11 @@ static int lock_build(const char * devname, char * buf, unsigned length)
 		basename = devname;
 
 	/* NOTE: use system system wide lock directory */
+	#if defined(__FreeBSD__)
+	return snprintf(buf, length, "/var/spool/lock/LCK..%s", basename);
+	#else
 	return snprintf(buf, length, "/var/lock/LCK..%s", basename);
+	#endif
 }
 
 #/* return 0 on error */
