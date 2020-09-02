@@ -268,20 +268,23 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 static void log_cmd_response_error(const struct pvt* pvt, const at_queue_cmd_t *ecmd, const char *fmt, ...)
 {
 	va_list ap;
+	char tempbuff[512];
 
 	if (at_cmd_suppress_error_mode(ecmd->flags) == SUPPRESS_ERROR_ENABLED) {
 		if (DEBUG_ATLEAST(1)) {
 			ast_log(AST_LOG_DEBUG, "[%s] Command response error suppressed:\n", PVT_ID(pvt));
 			va_start(ap, fmt);
-			ast_log_ap(AST_LOG_DEBUG, fmt, ap);
+			vsnprintf(tempbuff, 512, fmt, ap);
 			va_end(ap);
+			ast_log(AST_LOG_DEBUG, "%s", tempbuff);
 		}
 
 		return;
 	}
 
 	va_start(ap, fmt);
-	ast_log_ap(LOG_ERROR, fmt, ap);
+	vsnprintf(tempbuff, 512, fmt, ap);	
+	ast_log(LOG_ERROR, "%s", tempbuff);
 	va_end(ap);
 }
 
