@@ -403,7 +403,7 @@ EXPORT_DEF int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, s
 			/* tpdu_parse_deliver sets chan_dongle_err */
 			return -1;
 		}
-		res = ucs2_to_utf8(msg16_tmp, res, msg, res * 2 + 2);
+		res = ucs2_to_utf8(msg16_tmp, res, msg, *msg_len);
 		if (res < 0) {
 			chan_dongle_err = E_PARSE_UCS2;
 			return -1;

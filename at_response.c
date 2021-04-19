@@ -1266,7 +1266,7 @@ static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
 	char		msg[4096];
 	int		res;
 	char		text_base64[40800];
-	size_t		msg_len;
+	size_t msg_len = sizeof(msg);
 	int tpdu_type;
 	pdu_udh_t	udh;
 	pdu_udh_init(&udh);

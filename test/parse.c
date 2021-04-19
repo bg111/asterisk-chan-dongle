@@ -305,6 +305,7 @@ void test_parse_cmgr()
 		int failidx = 0;
 		result.str = input = strdup(cases[idx].input);
 		result.msg_utf8 = buf;
+		result.msg_len = sizeof(buf);
 
 		fprintf(stderr, "/* %u */ %s(\"%s\")...", idx, "at_parse_cmgr", input);
 		result.res = at_parse_cmgr(
