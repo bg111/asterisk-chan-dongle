@@ -1,20 +1,22 @@
-#ifndef CONFIG_H_INCLUDED
-#define CONFIG_H_INCLUDED
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* The Asterisk version as configured --with-astversion. */
+#undef ASTERISK_VERSION_NUM
 
 /* name of asterisk module */
 #undef AST_MODULE
 
-/* Build extention applications */
+/* Build Application extensions */
 #undef BUILD_APPLICATIONS
 
-/* Build Manager extentions */
+/* Build Manager extensions */
 #undef BUILD_MANAGER
+
+/* Define to 1 if you have HAVE_AST_CONTROL_SRCCHANGE in asterisk/frame.h */
+#undef HAVE_AST_CONTROL_SRCCHANGE
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
-
-/* Define to 1 if you have the <iconv.h> header file. */
-#undef HAVE_ICONV_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -34,6 +36,9 @@
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
+/* Define to 1 if you have the `realpath' function. */
+#undef HAVE_REALPATH
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
@@ -45,9 +50,6 @@
 
 /* Define to 1 if you have the `strchr' function. */
 #undef HAVE_STRCHR
-
-/* Define to 1 if you have the `realpath' function. */
-#undef HAVE_REALPATH
 
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
@@ -82,32 +84,44 @@
 /* Define to iconv_t if you has iconv_t in iconv.h */
 #undef ICONV_T
 
-/* Define to 1 if you have HAVE_AST_CONTROL_SRCCHANGE in asterisk/frame.h */
-#undef HAVE_AST_CONTROL_SRCCHANGE
-
-/* Define to the address where bug reports for this package should be sent. */
+/* Define to the address where bug reports for this package should be sent */
 #undef MODULE_BUGREPORT
 
+/* Define to the home page for this package */
+#undef MODULE_URL
+
+/* Define to the version of this package */
+#undef MODULE_VERSION
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
 /* Define to the full name of this package. */
-//#undef PACKAGE_NAME
+#undef PACKAGE_NAME
 
 /* Revision of package */
 #undef PACKAGE_REVISION
 
 /* Define to the full name and version of this package. */
-//#undef PACKAGE_STRING
+#undef PACKAGE_STRING
 
 /* Define to the one symbol short name of this package. */
-//#undef PACKAGE_TARNAME
+#undef PACKAGE_TARNAME
 
 /* Define to the home page for this package. */
-#undef MODULE_URL
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
-#undef MODULE_VERSION
+#undef PACKAGE_VERSION
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Version number of package */
+#undef VERSION
 
 /* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
@@ -135,5 +149,3 @@
 /* Define to the type of an unsigned integer type of width exactly 64 bits if
    such a type exists and the standard includes do not define it. */
 #undef uint64_t
-
-#endif /* CONFIG_H_INCLUDED */

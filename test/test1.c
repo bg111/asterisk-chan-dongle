@@ -96,9 +96,8 @@ void test_suite1()
 }
 
 #/* */
-int main(int argc, char * argv[])
+int main()
 {
 	test_suite1();
-
 	return 0;
 }

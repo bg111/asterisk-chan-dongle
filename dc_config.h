@@ -4,7 +4,8 @@
 #ifndef CHAN_DONGLE_DC_CONFIG_H_INCLUDED
 #define CHAN_DONGLE_DC_CONFIG_H_INCLUDED
 
-#include <asterisk.h>
+#include "ast_config.h"
+
 #include <asterisk/channel.h>		/* AST_MAX_CONTEXT MAX_LANGUAGE */
 
 #include "export.h"			/* EXPORT_DECL EXPORT_DEF */
@@ -14,6 +15,7 @@
 #define DEVNAMELEN		31
 #define IMEI_SIZE		15
 #define IMSI_SIZE		15
+#define PATHLEN			256
 #define DEVPATHLEN		256
 
 typedef enum {
@@ -75,7 +77,6 @@ typedef struct dc_sconfig
 	unsigned int		autodeletesms:1;		/*! 0 */
 	unsigned int		resetdongle:1;			/*! 1 */
 	unsigned int		disablesms:1;			/*! 0 */
-	unsigned int		smsaspdu:1;			/*! 0 */
 	dev_state_t		initstate;			/*! DEV_STATE_STARTED */
 //	unsigned int		disable:1;			/*! 0 */
 
@@ -98,6 +99,11 @@ typedef struct dc_gconfig
 	struct ast_jb_conf	jbconf;				/*!< jitter buffer settings, disabled by default */
 	int			discovery_interval;		/*!< The device discovery interval */
 #define DEFAULT_DISCOVERY_INT	60
+	char sms_db[PATHLEN];
+#define DEFAULT_SMS_DB "/var/lib/asterisk/smsdb"
+	int csms_ttl;
+#define DEFAULT_CSMS_TTL 600
+
 } dc_gconfig_t;
 
 /* Local required (unique) settings */

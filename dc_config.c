@@ -1,14 +1,10 @@
 /*
    Copyright (C) 2010 bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
-
 #include "dc_config.h"
 #include <asterisk/callerid.h>				/* ast_parse_caller_presentation() */
 
-static struct ast_jb_conf jbconf_default = 
+static struct ast_jb_conf jbconf_default =
 {
 	.flags			= 0,
 	.max_size		= -1,
@@ -22,7 +18,7 @@ static const char * const dtmf_values[] = { "off", "inband", "relax" };
 
 EXPORT_DEF int dc_dtmf_str2setting(const char * value)
 {
-    return str2enum(value, dtmf_values, ITEMS_OF(dtmf_values));
+	return str2enum(value, dtmf_values, ITEMS_OF(dtmf_values));
 }
 
 EXPORT_DEF const char * dc_dtmf_setting2str(dc_dtmf_setting_t dtmf)
@@ -171,10 +167,6 @@ EXPORT_DEF void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struc
 		{
 			config->disablesms = ast_true (v->value);		/* disablesms is set to 0 if invalid */
 		}
-		else if (!strcasecmp (v->name, "smsaspdu"))
-		{
-			config->smsaspdu = ast_true (v->value);			/* send_sms_as_pdu us set to 0 if invalid */
-		}
 		else if (!strcasecmp (v->name, "disable"))
 		{
 			config->initstate = ast_true (v->value) ? DEV_STATE_REMOVED : DEV_STATE_STARTED;
@@ -238,11 +230,13 @@ EXPORT_DEF void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struc
 {
 	struct ast_variable * v;
 	int tmp;
-	const char * stmp;
+	const char * stmp, *smsdb, *csmsttl;
 
 	/* set default values */
 	memcpy(&config->jbconf, &jbconf_default, sizeof(config->jbconf));
 	config->discovery_interval = DEFAULT_DISCOVERY_INT;
+	ast_copy_string (config->sms_db, DEFAULT_SMS_DB, sizeof(DEFAULT_SMS_DB));
+	config->csms_ttl = DEFAULT_CSMS_TTL;
 
 	stmp = ast_variable_retrieve (cfg, cat, "interval");
 	if(stmp)
@@ -255,6 +249,22 @@ EXPORT_DEF void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struc
 			config->discovery_interval = tmp;
 	}
 
+	smsdb = ast_variable_retrieve (cfg, cat, "smsdb");
+	if(smsdb)
+	{
+		ast_copy_string (config->sms_db, smsdb, sizeof (config->sms_db));
+	}
+
+	csmsttl = ast_variable_retrieve (cfg, cat, "csmsttl");
+	if(csmsttl)
+	{
+		errno = 0;
+		tmp = (int) strtol (csmsttl, (char**) NULL, 10);
+		if (tmp == 0 && errno == EINVAL)
+			ast_log (LOG_NOTICE, "Error parsing 'csmsttl' in general section, using default value %d\n", config->csms_ttl);
+		else
+			config->csms_ttl = tmp;
+	}
 
 	for (v = ast_variable_browse (cfg, cat); v; v = v->next)
 		/* handle jb conf */

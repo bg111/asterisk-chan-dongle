@@ -44,7 +44,11 @@ static int lock_build(const char * devname, char * buf, unsigned length)
 		basename = devname;
 
 	/* TODO: use asterisk build settings for /var/lock */
+	#if defined(__FreeBSD__)
+	return snprintf(buf, length, "/var/spool/lock/LCK..%s", basename);
+	#else
 	return snprintf(buf, length, "/var/lock/LCK..%s", basename);
+	#endif
 }
 
 #/* return 0 on error */

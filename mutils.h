@@ -6,6 +6,8 @@
 
 #include "export.h"
 
+#include <string.h>
+
 #define ITEMS_OF(x)				(sizeof(x)/sizeof((x)[0]))
 #define STRLEN(string)				(sizeof(string)-1)
 

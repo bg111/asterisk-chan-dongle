@@ -4,7 +4,8 @@
 #ifndef CHAN_DONGLE_CPVT_H_INCLUDED
 #define CHAN_DONGLE_CPVT_H_INCLUDED
 
-#include <asterisk.h>
+#include "ast_config.h"
+
 #include <asterisk/linkedlists.h>		/* AST_LIST_ENTRY() */
 #include <asterisk/frame.h>			/* AST_FRIENDLY_OFFSET */
 
@@ -64,13 +65,13 @@ typedef struct cpvt {
 #define CALL_DIR_OUTGOING	0
 #define CALL_DIR_INCOMING	1
 
-	int			rd_pipe[2];			/*!< pipe for split readed from device */
+	int			rd_pipe[2];			/*!< pipe for split read from device */
 #define PIPE_READ		0
 #define PIPE_WRITE		1
 
 	struct mixstream	mixstream;			/*!< mix stream */
 	char			a_read_buf[FRAME_SIZE + AST_FRIENDLY_OFFSET];/*!< audio read buffer */
-	struct ast_frame	a_read_frame;			/*!< readed frame buffer */
+	struct ast_frame	a_read_frame;			/*!< read frame buffer */
 
 //	size_t			write;				/*!< write position in pvt->a_write_buf */
 //	size_t			used;				/*!< bytes used in pvt->a_write_buf */

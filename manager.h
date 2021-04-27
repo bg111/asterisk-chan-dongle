@@ -20,7 +20,7 @@ EXPORT_DECL void manager_event_new_sms_base64 (const char * devname, char * numb
 EXPORT_DECL void manager_event_cend(const char * devname, int call_index, int duration, int end_status, int cc_cause);
 EXPORT_DECL void manager_event_call_state_change(const char * devname, int call_index, const char * newstate);
 EXPORT_DECL void manager_event_device_status(const char * devname, const char * newstatus);
-EXPORT_DECL void manager_event_sent_notify(const char * devname, const char * type, const void * id, const char * result);
+EXPORT_DECL void manager_event_report(const char * devname, const char *payload, size_t payload_len, const char *scts, const char *dt, int success, int type, const char *report_str);
 
 #else  /* BUILD_MANAGER */
 
@@ -35,7 +35,7 @@ EXPORT_DECL void manager_event_sent_notify(const char * devname, const char * ty
 #define manager_event_cend(devname, call_index, duration, end_status, cc_cause)
 #define manager_event_call_state_change(devname, call_index, newstate)
 #define manager_event_device_status(devname, newstatus)
-#define manager_event_sent_notify(devname, type, id, result)
+#define manager_event_report(devname, payload, payload_len, scts, dt, success, type, report_str)
 
 #endif /* BUILD_MANAGER */
 
