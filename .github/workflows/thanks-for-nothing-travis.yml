@@ -1,0 +1,43 @@
+name: Thanks for nothing, Travis
+
+on: [push, pull_request]
+
+jobs:
+
+  build:
+
+    strategy:
+      matrix:
+        include:
+          - title: Asterisk 13
+            asterisk_version: 13
+          - title: Asterisk 14
+            asterisk_version: 14
+          - title: Asterisk 16
+            asterisk_version: 16
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download ${{ matrix.title }} prerequisites
+        env:
+          ASTVER: ${{ matrix.asterisk_version }}
+        run:
+          wget http://junk.devs.nu/a/asterisk/asterisk-$ASTVER-include.tar.bz2 &&
+          tar jxf asterisk-$ASTVER-include.tar.bz2
+
+      - name: Bootstrap and configure for ${{ matrix.title }}
+        env:
+          ASTVER: ${{ matrix.asterisk_version }}
+        run:
+          ./bootstrap &&
+          ./configure --with-astversion=$ASTVER
+              --with-asterisk=./asterisk-$ASTVER/include DESTDIR=/tmp
+
+      - name: Build for ${{ matrix.title }}
+        run: make clean all
+
+      - name: Check
+        run: make check
