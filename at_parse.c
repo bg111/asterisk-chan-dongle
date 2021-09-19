@@ -354,8 +354,8 @@ EXPORT_DEF int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, s
 	char delimiters[] = ",,\n";
 	char *marks[STRLEN(delimiters)];
 	char *end;
-	size_t tpdu_length;
-	int16_t msg16_tmp[256];
+	ssize_t tpdu_length;
+	uint16_t msg16_tmp[256];
 
 	if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
 		chan_dongle_err = E_PARSE_CMGR_LINE;
@@ -367,13 +367,13 @@ EXPORT_DEF int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, s
 	}
 	str = marks[2] + 1;
 
-	int pdu_length = (unhex(str, str) + 1) / 2;
+	int pdu_length = (unhex(str, (uint8_t*)str) + 1) / 2;
 	if (pdu_length < 0) {
 		chan_dongle_err = E_MALFORMED_HEXSTR;
 		return -1;
 	}
 	int res, i = 0;
-	res = pdu_parse_sca(str + i, pdu_length - i, sca, sca_len);
+	res = pdu_parse_sca((const uint8_t*)str + i, pdu_length - i, sca, sca_len);
 	if (res < 0) {
 		/* tpdu_parse_sca sets chan_dongle_err */
 		return -1;
@@ -383,7 +383,7 @@ EXPORT_DEF int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, s
 		chan_dongle_err = E_INVALID_TPDU_LENGTH;
 		return -1;
 	}
-	res = tpdu_parse_type(str + i, pdu_length - i, tpdu_type);
+	res = tpdu_parse_type((const uint8_t*)str + i, pdu_length - i, tpdu_type);
 	if (res < 0) {
 		/* tpdu_parse_type sets chan_dongle_err */
 		return -1;
@@ -391,14 +391,16 @@ EXPORT_DEF int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, s
 	i += res;
 	switch (PDUTYPE_MTI(*tpdu_type)) {
 	case PDUTYPE_MTI_SMS_STATUS_REPORT:
-		res = tpdu_parse_status_report(str + i, pdu_length - i, mr, oa, oa_len, scts, dt, st);
+		res = tpdu_parse_status_report((const uint8_t*)str + i, pdu_length - i,
+			mr, oa, oa_len, scts, dt, st);
 		if (res < 0) {
 			/* tpdu_parse_status_report sets chan_dongle_err */
 			return -1;
 		}
 		break;
 	case PDUTYPE_MTI_SMS_DELIVER:
-		res = tpdu_parse_deliver(str + i, pdu_length - i, *tpdu_type, oa, oa_len, scts, msg16_tmp, udh);
+		res = tpdu_parse_deliver((const uint8_t*)str + i, pdu_length - i,
+			*tpdu_type, oa, oa_len, scts, msg16_tmp, udh);
 		if (res < 0) {
 			/* tpdu_parse_deliver sets chan_dongle_err */
 			return -1;

@@ -290,12 +290,14 @@ static int smsdb_commit_transaction(void)
 	return res;
 }
 
+#if 0
 static int smsdb_rollback_transaction(void)
 {
 	int res = db_execute_sql("ROLLBACK", NULL, NULL);
 	ast_mutex_unlock(&dblock);
 	return res;
 }
+#endif
 
 
 /*!
@@ -388,6 +390,7 @@ EXPORT_DEF int smsdb_put(const char *id, const char *addr, int ref, int parts, i
 	return res;
 }
 
+#if 0
 static int smsdb_purge()
 {
 	int res = 0;
@@ -399,6 +402,7 @@ static int smsdb_purge()
 
 	return res;
 }
+#endif
 
 EXPORT_DEF int smsdb_get_refid(const char *id, const char *addr)
 {

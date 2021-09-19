@@ -1258,7 +1258,7 @@ static int at_response_cdsi (struct pvt* pvt, const char* str)
  * \retval -1 error
  */
 
-static int at_response_cmgr (struct pvt* pvt, const char * str, size_t len)
+static int at_response_cmgr(struct pvt* pvt, char * str, size_t len)
 {
 	char		oa[512] = "", sca[512] = "";
 	char scts[64], dt[64];
@@ -1467,7 +1467,7 @@ static int at_response_cusd (struct pvt * pvt, char * str, size_t len)
 	ast_verb (1, "[%s] USSD DCS=%d (0: gsm7, 1: ascii, 2: ucs2)\n", PVT_ID(pvt), dcs);
 	if (dcs == 0) { // GSM-7
 		uint16_t out_ucs2[1024];
-		int cusd_nibbles = unhex(cusd, cusd);
+		int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
 		res = gsm7_unpack_decode(cusd, cusd_nibbles, out_ucs2, sizeof(out_ucs2) / 2, 0, 0, 0);
 		if (res < 0) {
 			return -1;
@@ -1475,14 +1475,15 @@ static int at_response_cusd (struct pvt * pvt, char * str, size_t len)
 		res = ucs2_to_utf8(out_ucs2, res, cusd_utf8_str, sizeof(cusd_utf8_str) - 1);
 	} else if (dcs == 1) { // ASCII
 		res = strlen(cusd);
-		if (res > sizeof(cusd_utf8_str) - 1) {
+		if (res > (ssize_t)sizeof(cusd_utf8_str) - 1) {
 			res = -1;
 		} else {
 			memcpy(cusd_utf8_str, cusd, res);
 		}
 	} else if (dcs == 2) { // UCS-2
-		int cusd_nibbles = unhex(cusd, cusd);
-		res = ucs2_to_utf8(cusd, (cusd_nibbles + 1) / 4, cusd_utf8_str, sizeof(cusd_utf8_str) - 1);
+		int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
+		res = ucs2_to_utf8((const uint16_t*)cusd, (cusd_nibbles + 1) / 4,
+			cusd_utf8_str, sizeof(cusd_utf8_str) - 1);
 	} else {
 		res = -1;
 	}
@@ -1953,6 +1954,8 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 				ast_log (LOG_ERROR, "[%s] Error parsing result\n", PVT_ID(pvt));
 				return -1;
 
+			case COMPATIBILITY_RES_START_AT_MINUSONE:
+				/* ??? */
 			case RES_UNKNOWN:
 				if (ecmd)
 				{
