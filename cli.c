@@ -389,8 +389,6 @@ static char* cli_show_version (struct ast_cli_entry* e, int cmd, struct ast_cli_
 
 static char* cli_cmd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-
 	switch (cmd)
 	{
 		case CLI_INIT:

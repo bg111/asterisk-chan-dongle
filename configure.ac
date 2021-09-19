@@ -187,6 +187,10 @@ AC_SUBST([TARGET])
 AC_CC_OPT([-fPIC],[-fPIC])
 AC_CC_OPT([-Wall],[-Wall])
 AC_CC_OPT([-Wextra],[-Wextra])
+AC_CC_OPT([-Werror=all],[-Werror=all])
+AC_CC_OPT([-Werror=extra],[-Werror=extra])
+AC_CC_OPT([-Werror=discarded-qualifiers],[-Werror=discarded-qualifiers])
+AC_CC_OPT([-Wno-error=format-truncation],[-Wno-error=format-truncation])
 AC_CC_OPT([-MD -MT conftest.o -MF /dev/null -MP],[-MD -MT \$@ -MF .\$(subst /,_,\$@).d -MP])
 
 AC_DEFUN([AC_CHECK_DESTDIR], [

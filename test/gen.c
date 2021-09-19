@@ -21,6 +21,7 @@ typedef struct result
 	const char *in;
 	const char *out[16];
 } result_t;
+
 void test_pdu_build()
 {
 	result_t res[] = {
@@ -60,7 +61,7 @@ void test_pdu_build()
 	uint16_t ucs2[256];
 	pdu_part_t pdus[255];
 	char hexbuf[PDU_LENGTH * 2 + 1];
-	for (int i = 0; i < sizeof(res) / sizeof(result_t); ++i) {
+	for (unsigned i = 0; i < sizeof(res) / sizeof(result_t); ++i) {
 		int ret = utf8_to_ucs2(res[i].in, strlen(res[i].in), ucs2, sizeof(ucs2));
 		if (ret < 0) {
 			fprintf(stderr, "Check %d unsuccessful: UTF-8-to-UCS-2 returns failure code %d\n", i, ret);
@@ -80,7 +81,9 @@ void test_pdu_build()
 				fprintf(stderr, "Check %d unsuccessful: Expected %s; Got %s\n", i, res[i].out[j], hexbuf);
 			}
 		}
-		if (res[i].out[cnt]) fprintf(stderr, "Check %d unsuccessful: Expected %s; Got %s\n", i, res[i].out[cnt], NULL);
+		if (res[i].out[cnt]) {
+			fprintf(stderr, "Check %d unsuccessful: Expected %s; Got (null)\n", i, res[i].out[cnt]);
+		}
 	}
 }
 
