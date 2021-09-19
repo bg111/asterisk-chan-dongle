@@ -34,6 +34,7 @@ static const char cmd_chld1x[]   = "AT+CHLD=1%d\r";
 static const char cmd_chld2[]    = "AT+CHLD=2\r";
 static const char cmd_clcc[]     = "AT+CLCC\r";
 static const char cmd_ddsetex2[] = "AT^DDSETEX=2\r";
+static const char cmd_qpcmv10[]  = "AT+QPCMV=1,0\r";
 
 /*!
  * \brief Format and fill generic command
@@ -147,8 +148,9 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 		/* Get Subscriber number */
 		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, "AT+CNUM\r"),
 		/* read the current voice mode, and return sampling
-		 * rate、data bit、frame period */
+		 * rate, data bit, frame period */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CVOICE, "AT^CVOICE?\r"),
+		ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV, "AT+QPCMV?\r"), /* for Quectel */
 
 		/* Get SMS Service center address */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, "AT+CSCA?\r"),
@@ -533,9 +535,12 @@ EXPORT_DEF int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 	ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_CLCC, cmd_clcc);
 	cmdsno++;
 
-	ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_DDSETEX, cmd_ddsetex2);
+	if (pvt->has_voice_quectel) {
+		ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_DDSETEX, cmd_qpcmv10);
+	} else {
+		ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_DDSETEX, cmd_ddsetex2);
+	}
 	cmdsno++;
-
 
 	if (at_queue_insert(cpvt, cmds, cmdsno, 1) != 0) {
 		chan_dongle_err = E_QUEUE;
@@ -553,12 +558,17 @@ EXPORT_DEF int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
  */
 EXPORT_DEF int at_enqueue_answer(struct cpvt *cpvt)
 {
-	at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_DYN(CMD_AT_A),
-		ATQ_CMD_DECLARE_ST(CMD_AT_DDSETEX, cmd_ddsetex2),
-		};\
-	int count = ITEMS_OF(cmds);
+	pvt_t* pvt = cpvt->pvt;
+	at_queue_cmd_t cmds[2];
+	unsigned count = 2; /* AT_A + setup-voice */
 	const char * cmd1;
+
+	ATQ_CMD_INIT_DYN(cmds[0], CMD_AT_A);
+	if (pvt->has_voice_quectel) {
+		ATQ_CMD_INIT_ST(cmds[1], CMD_AT_DDSETEX, cmd_qpcmv10);
+	} else {
+		ATQ_CMD_INIT_ST(cmds[1], CMD_AT_DDSETEX, cmd_ddsetex2);
+	}
 
 	if(cpvt->state == CALL_STATE_INCOMING)
 	{
