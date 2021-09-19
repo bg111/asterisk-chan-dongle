@@ -110,66 +110,62 @@ static int __attribute__ ((format(printf, 4, 5))) at_enqueue_generic(struct cpvt
  */
 EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 {
-	static const char cmd2[] = "ATZ\r";
-	static const char cmd3[] = "ATE0\r";
-
-	static const char cmd5[] = "AT+CGMI\r";
-	static const char cmd6[] = "AT+CSCA?\r";
-	static const char cmd7[] = "AT+CGMM\r";
-	static const char cmd8[] = "AT+CGMR\r";
-
-	static const char cmd9[] = "AT+CMEE=0\r";
-	static const char cmd10[] = "AT+CGSN\r";
-	static const char cmd11[] = "AT+CIMI\r";
-	static const char cmd12[] = "AT+CPIN?\r";
-
-	static const char cmd13[] = "AT+COPS=0,0\r";
-	static const char cmd14[] = "AT+CREG=2\r";
-	static const char cmd15[] = "AT+CREG?\r";
-	static const char cmd16[] = "AT+CNUM\r";
-
-	static const char cmd17[] = "AT^CVOICE?\r";
-//	static const char cmd18[] = "AT+CLIP=0\r";
-	static const char cmd19[] = "AT+CSSN=1,1\r";
-	static const char cmd20[] = "AT+CMGF=0\r";
-
-	static const char cmd22[] = "AT+CPMS=\"SM\",\"SM\",\"SM\"\r";
-	static const char cmd23[] = "AT+CNMI=2,1,0,2,0\r";
-	static const char cmd24[] = "AT+CSQ\r";
-
 	static const at_queue_cmd_t st_cmds[] = {
+		/* AT */
 		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_at),
-		ATQ_CMD_DECLARE_ST(CMD_AT_Z, cmd2),		/* optional,  reload configuration */
-		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd3),		/* disable echo */
-		ATQ_CMD_DECLARE_DYN(CMD_AT_U2DIAG),		/* optional, Enable or disable some devices */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CGMI, cmd5),		/* Getting manufacturer info */
+		/* optional,  reload configuration */
+		ATQ_CMD_DECLARE_ST(CMD_AT_Z, "ATZ\r"),
+		/* disable echo */
+		ATQ_CMD_DECLARE_ST(CMD_AT_E, "ATE0\r"),
+		/* optional, Enable or disable some devices */
+		ATQ_CMD_DECLARE_DYN(CMD_AT_U2DIAG),
+		/* Get manufacturer info */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CGMI, "AT+CGMI\r"),
 
-		ATQ_CMD_DECLARE_ST(CMD_AT_CGMM, cmd7),		/* Get Product name */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CGMR, cmd8),		/* Get software version */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CMEE, cmd9),		/* set MS Error Report to 'ERROR' only  TODO: change to 1 or 2 and add support in response handlers */
+		/* Get Product name */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CGMM, "AT+CGMM\r"),
+		/* Get software version */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CGMR, "AT+CGMR\r"),
+		/* set MS Error Report to 'ERROR' only.
+		 * TODO: change to 1 or 2 and add support in response handlers */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CMEE, "AT+CMEE=0\r"),
 
-		ATQ_CMD_DECLARE_ST(CMD_AT_CGSN, cmd10),		/* IMEI Read */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CIMI, cmd11),		/* IMSI Read */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CPIN, cmd12),		/* check is password authentication requirement and the remainder validation times */
-		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, cmd13),	/* Read operator name */
+		/* IMEI Read */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CGSN, "AT+CGSN\r"),
+		/* IMSI Read */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CIMI, "AT+CIMI\r"),
+		/* check is password authentication requirement and the
+		 * remainder validation times */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CPIN, "AT+CPIN?\r"),
+		/* Read operator name */
+		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, "AT+COPS=0,0\r"),
 
-		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT,cmd14),	/* GSM registration status setting */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, cmd15),		/* GSM registration status */
-		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd16),		/* Get Subscriber number */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CVOICE, cmd17),	/* read the current voice mode, and return sampling rate、data bit、frame period */
+		/* GSM registration status setting */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT, "AT+CREG=2\r"),
+		/* GSM registration status */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, "AT+CREG?\r"),
+		/* Get Subscriber number */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, "AT+CNUM\r"),
+		/* read the current voice mode, and return sampling
+		 * rate、data bit、frame period */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CVOICE, "AT^CVOICE?\r"),
 
-		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, cmd6),		/* Get SMS Service center address */
-//		ATQ_CMD_DECLARE_ST(CMD_AT_CLIP, cmd18),		/* disable  Calling line identification presentation in unsolicited response +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validitity>]] */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CSSN, cmd19),		/* activate Supplementary Service Notification with CSSI and CSSU */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CMGF, cmd20),		/* Set Message Format */
+		/* Get SMS Service center address */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, "AT+CSCA?\r"),
+		/* activate Supplementary Service Notification with CSSI and CSSU */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CSSN, "AT+CSSN=1,1\r"),
+		/* Set Message Format */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CMGF, "AT+CMGF=0\r"),
 
-// 		ATQ_CMD_DECLARE_STI(CMD_AT_CSCS, cmd21),	/* UCS-2 text encoding */
+		/* SMS Storage Selection */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CPMS, "AT+CPMS=\"SM\",\"SM\",\"SM\"\r"),
+		/* New SMS Notification Setting +CNMI=[<mode>[,<mt>[,<bm>[,<ds>[,<bfr>]]]]] */
+		/* pvt->initialized = 1 after successful of CMD_AT_CNMI */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, "AT+CNMI=2,1,0,2,0\r"),
+		/* Query Signal quality */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CSQ, "AT+CSQ\r"),
+	};
 
-		ATQ_CMD_DECLARE_ST(CMD_AT_CPMS, cmd22),		/* SMS Storage Selection */
-			/* pvt->initialized = 1 after successful of CMD_AT_CNMI */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, cmd23),		/* New SMS Notification Setting +CNMI=[<mode>[,<mt>[,<bm>[,<ds>[,<bfr>]]]]] */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CSQ, cmd24),		/* Query Signal quality */
-		};
 	unsigned in, out;
 	int begin = -1;
 	int err;
