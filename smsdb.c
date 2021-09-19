@@ -628,7 +628,11 @@ EXPORT_DEF ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, 
 {
 	char fullkey[MAX_DB_FIELD + 1];
 	int fullkey_len;
-	int res = 0, partid, uid, cur, cnt;
+	int res = 0;
+	int partid;
+	int uid = -1;
+	int cur;
+	int cnt;
 
 	fullkey_len = snprintf(fullkey, sizeof(fullkey), "%s/%s/%d", id, addr, mr);
 	if (fullkey_len < 0) {
