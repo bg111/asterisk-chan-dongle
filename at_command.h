@@ -60,7 +60,11 @@
 	_( AT_CVOICE,       "AT^CVOICE") \
 	_( AT_D,            "ATD") \
 \
+	/* set the destination port of voice after a voice call is
+	 * established */ \
 	_( AT_DDSETEX,      "AT^DDSETEX") \
+	/* same, but for Quectel EC25 */ \
+	_( AT_QPCMV,        "AT+QPCMV") \
 	_( AT_DTMF,         "AT^DTMF") \
 	_( AT_E,            "ATE") \
 \

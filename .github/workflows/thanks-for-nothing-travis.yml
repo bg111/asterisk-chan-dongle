@@ -35,6 +35,7 @@ jobs:
           ./bootstrap &&
           ./configure --with-astversion=$ASTVER
               --with-asterisk=./asterisk-$ASTVER/include DESTDIR=/tmp
+              --enable-warnings-as-errors
 
       - name: Build for ${{ matrix.title }}
         run: make clean all

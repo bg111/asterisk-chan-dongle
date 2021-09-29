@@ -121,10 +121,16 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				ast_debug (1, "[%s] Subscriber phone number query successed\n", PVT_ID(pvt));
 				break;
 
+			/* These two are expected to be called in order */
 			case CMD_AT_CVOICE:
 				ast_debug (1, "[%s] Dongle has voice support\n", PVT_ID(pvt));
-
 				pvt->has_voice = 1;
+				pvt->has_voice_quectel = 0;
+				break;
+			case CMD_AT_QPCMV:
+				ast_debug (1, "[%s] Dongle has Quectel voice support\n", PVT_ID(pvt));
+				pvt->has_voice = 1;
+				pvt->has_voice_quectel = 1;
 				break;
 /*
 			case CMD_AT_CLIP:
@@ -356,19 +362,26 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				ast_debug (1, "[%s] Error getting registration info\n", PVT_ID(pvt));
 				break;
 
+			/* These two are expected to be called in order */
 			case CMD_AT_CVOICE:
-				ast_debug (1, "[%s] Dongle has NO voice support\n", PVT_ID(pvt));
-				ast_log (LOG_WARNING, "[%s] Dongle has NO voice support\n", PVT_ID(pvt));
-
+				ast_debug(1, "[%s] Dongle has NO (CVOICE) voice support\n", PVT_ID(pvt));
 				pvt->has_voice = 0;
+				break;
+			case CMD_AT_QPCMV:
+				ast_debug(1, "[%s] Dongle has NO (QPCMV) voice support\n", PVT_ID(pvt));
+				pvt->has_voice_quectel = 0;
 
-				if (!pvt->initialized)
-				{
-					/* continue initialization in other job at cmd CMD_AT_CMGF */
-					if (at_enqueue_initialization(task->cpvt, CMD_AT_CMGF))
+				if (pvt->has_voice == 0) {
+					ast_log(LOG_WARNING, "[%s] Dongle has NO voice support\n", PVT_ID(pvt));
+
+					if (!pvt->initialized)
 					{
-						log_cmd_response_error(pvt, ecmd, "[%s] Error schedule initialization commands\n", PVT_ID(pvt));
-						goto e_return;
+						/* continue initialization in other job at cmd CMD_AT_CMGF */
+						if (at_enqueue_initialization(task->cpvt, CMD_AT_CMGF))
+						{
+							log_cmd_response_error(pvt, ecmd, "[%s] Error schedule initialization commands\n", PVT_ID(pvt));
+							goto e_return;
+						}
 					}
 				}
 				break;
@@ -436,7 +449,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_DDSETEX:
-				log_cmd_response_error(pvt, ecmd, "[%s] AT^DDSETEX failed\n", PVT_ID(pvt));
+				log_cmd_response_error(pvt, ecmd, "[%s] %s (setup voice) failed\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				break;
 
 			case CMD_AT_CHUP:

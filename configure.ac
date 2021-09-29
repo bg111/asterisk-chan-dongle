@@ -45,10 +45,17 @@ AC_DEFINE_UNQUOTED([ASTERISK_VERSION_NUM], [$with_astversion],
 		   [The Asterisk version as configured --with-astversion.])
 
 AC_ARG_ENABLE(
-	[debug], 
+	[debug],
 	AS_HELP_STRING([--enable-debug], [enable code debugging]),
 	[ if test "x$enable_debug" != "xyes" ; then enable_debug="no" ; fi],
 	[ enable_debug="no"]
+)
+
+AC_ARG_ENABLE(
+	[warnings-as-errors],
+	AS_HELP_STRING([--enable-warnings-as-errors], [abort compilation on errors]),
+	[ if test "x$enable_warnings_as_errors" != "xyes" ; then enable_warnings_as_errors="no" ; fi],
+	[ enable_warnings_as_errors="no"]
 )
 
 dnl  Optionally disable manager.
@@ -114,7 +121,7 @@ AC_CHECK_HEADER([sqlite3.h],,AC_MSG_ERROR([sqlite3.h header file missing]))
 
 AC_DEFINE([ICONV_CONST],[], [Define to const if you has iconv() const declaration of input buffer])
 AC_MSG_CHECKING([for iconv use const inbuf])
-AC_EGREP_HEADER([^extern.+iconv[[:space:]]*\(.+const], [iconv.h], 
+AC_EGREP_HEADER([^extern.+iconv[[:space:]]*\(.+const], [iconv.h],
     [
     AC_DEFINE([ICONV_CONST],[const])
     AC_MSG_RESULT([yes])
@@ -123,7 +130,7 @@ AC_EGREP_HEADER([^extern.+iconv[[:space:]]*\(.+const], [iconv.h],
 )
 
 AC_MSG_CHECKING([for iconv_t in iconv.h])
-AC_EGREP_HEADER([iconv_t], [iconv.h], 
+AC_EGREP_HEADER([iconv_t], [iconv.h],
     [
     AC_DEFINE([ICONV_T], [iconv_t], , [Define to iconv_t if you has iconv_t in iconv.h])
     AC_MSG_RESULT(yes)
@@ -135,7 +142,7 @@ AC_EGREP_HEADER([iconv_t], [iconv.h],
     ])
 
 AC_MSG_CHECKING([for AST_CONTROL_SRCCHANGE in asterisk/frame.h])
-AC_EGREP_HEADER([AST_CONTROL_SRCCHANGE], [asterisk/frame.h], 
+AC_EGREP_HEADER([AST_CONTROL_SRCCHANGE], [asterisk/frame.h],
     [
     AC_DEFINE([HAVE_AST_CONTROL_SRCCHANGE], [], [Define to 1 if you have HAVE_AST_CONTROL_SRCCHANGE in asterisk/frame.h])
     AC_MSG_RESULT([yes])
@@ -187,10 +194,12 @@ AC_SUBST([TARGET])
 AC_CC_OPT([-fPIC],[-fPIC])
 AC_CC_OPT([-Wall],[-Wall])
 AC_CC_OPT([-Wextra],[-Wextra])
-AC_CC_OPT([-Werror=all],[-Werror=all])
-AC_CC_OPT([-Werror=extra],[-Werror=extra])
-AC_CC_OPT([-Werror=discarded-qualifiers],[-Werror=discarded-qualifiers])
-AC_CC_OPT([-Wno-error=format-truncation],[-Wno-error=format-truncation])
+if test "x$enable_warnings_as_errors" = "xyes" ; then
+    AC_CC_OPT([-Werror=all],[-Werror=all])
+    AC_CC_OPT([-Werror=extra],[-Werror=extra])
+    AC_CC_OPT([-Werror=discarded-qualifiers],[-Werror=discarded-qualifiers])
+    AC_CC_OPT([-Wno-error=format-truncation],[-Wno-error=format-truncation])
+fi
 AC_CC_OPT([-MD -MT conftest.o -MF /dev/null -MP],[-MD -MT \$@ -MF .\$(subst /,_,\$@).d -MP])
 
 AC_DEFUN([AC_CHECK_DESTDIR], [
@@ -226,7 +235,7 @@ AC_CHECK_FUNCS([memchr memmove memset memmem strcasecmp strchr strncasecmp strto
 
 dnl Apply options to defines
 if test "x$enable_debug" = "xyes" ; then
-  CFLAGS="$CFLAGS -O0 -g"
+  CFLAGS="$CFLAGS -O0 -g3"
   AC_DEFINE([__DEBUG__], [1], [Build with debugging])
 else
   CFLAGS="$CFLAGS -O6"
