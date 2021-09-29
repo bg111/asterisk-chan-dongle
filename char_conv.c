@@ -116,7 +116,13 @@ EXPORT_DEF void hexify(const uint8_t *in, size_t in_length, char *out)
 #/* */
 static const uint8_t *get_char_gsm7_encoding(uint16_t c)
 {
-	int minor = c >> 8, major = c & 255;
+#if __BYTE_ORDER == __BIG_ENDIAN
+	int minor = c & 0xff;
+	int major = c >> 8;
+#else
+	int minor = c >> 8;
+	int major = c & 0xff;
+#endif
 	int subtab = LUT_GSM7_REV1[major];
 	if (subtab == -1) return LUT_GSM7_REV2_INV;
 	return LUT_GSM7_REV2[subtab][minor];
@@ -218,7 +224,11 @@ EXPORT_DEF ssize_t gsm7_unpack_decode(const char *in, size_t in_nibbles, uint16_
 					esc = 1;
 				} else {
 					esc = 0;
+#if __BYTE_ORDER == __BIG_ENDIAN
+					out[x++] = val;
+#else
 					out[x++] = ((val & 0xff) << 8) | (val >> 8);
+#endif
 				}
 			}
 		}
