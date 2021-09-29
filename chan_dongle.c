@@ -305,7 +305,6 @@ static void disconnect_dongle (struct pvt* pvt)
 //	else
 	{
 		/* unaffected in case of restart */
-		pvt->use_ucs2_encoding = 0;
 		pvt->gsm_reg_status = -1;
 		pvt->rssi = 0;
 		pvt->linkmode = 0;

@@ -148,9 +148,6 @@ typedef struct pvt
 	unsigned long		channel_instance;		/*!< number of channels created on this device */
 	unsigned int		rings;				/*!< ring/ccwa  number distributed to at_response_clcc() */
 
-	/* device caps */
-	unsigned int		use_ucs2_encoding:1;
-
 	/* device state */
 	int			gsm_reg_status;
 	int			rssi;

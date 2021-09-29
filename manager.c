@@ -89,7 +89,6 @@ static int manager_show_devices (struct mansession* s, const struct message* m)
 			astman_append (s, "CellID: %s\r\n", pvt->cell_id);
 			astman_append (s, "SubscriberNumber: %s\r\n", pvt->subscriber_number);
 			astman_append (s, "SMSServiceCenter: %s\r\n", pvt->sms_scenter);
-			astman_append (s, "UseUCS2Encoding: %s\r\n", pvt->use_ucs2_encoding ? "Yes" : "No");
 			astman_append (s, "TasksInQueue: %u\r\n", PVT_STATE(pvt, at_tasks));
 			astman_append (s, "CommandsInQueue: %u\r\n", PVT_STATE(pvt, at_cmds));
 			astman_append (s, "CallWaitingState: %s\r\n", pvt->has_call_waiting ? "Enabled" : "Disabled");

@@ -139,12 +139,6 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				ast_debug (1, "[%s] SMS operation mode set to PDU\n", PVT_ID(pvt));
 				break;
 
-			case CMD_AT_CSCS:
-				ast_debug (1, "[%s] UCS-2 text encoding enabled\n", PVT_ID(pvt));
-
-				pvt->use_ucs2_encoding = 1;
-				break;
-
 			case CMD_AT_CPMS:
 				ast_debug (1, "[%s] SMS storage location is established\n", PVT_ID(pvt));
 				break;
@@ -413,12 +407,6 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 					}
 					goto e_return;
 				}
-				break;
-
-			case CMD_AT_CSCS:
-				ast_debug (1, "[%s] No UCS-2 encoding support\n", PVT_ID(pvt));
-
-				pvt->use_ucs2_encoding = 0;
 				break;
 
 			case CMD_AT_A:
