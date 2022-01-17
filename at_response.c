@@ -373,16 +373,6 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 
 				if (pvt->has_voice == 0) {
 					ast_log(LOG_WARNING, "[%s] Dongle has NO voice support\n", PVT_ID(pvt));
-
-					if (!pvt->initialized)
-					{
-						/* continue initialization in other job at cmd CMD_AT_CMGF */
-						if (at_enqueue_initialization(task->cpvt, CMD_AT_CMGF))
-						{
-							log_cmd_response_error(pvt, ecmd, "[%s] Error schedule initialization commands\n", PVT_ID(pvt));
-							goto e_return;
-						}
-					}
 				}
 				break;
 /*
