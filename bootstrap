@@ -2,6 +2,7 @@
 
 aclocal
 autoconf
+autoheader
 
 # We don't use Makefile.am, but we *do* use automake to add
 # "missing" files used by configure.

@@ -21,6 +21,9 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `sqlite3' library (-lsqlite3). */
+#undef HAVE_LIBSQLITE3
+
 /* Define to 1 if you have the `memchr' function. */
 #undef HAVE_MEMCHR
 

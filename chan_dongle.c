@@ -1766,7 +1766,9 @@ static int public_state_init(struct public_state * state)
 			/* register our channel type */
 			if(ast_channel_register(&channel_tech) == 0)
 			{
-				smsdb_init();
+				if (smsdb_init() != 0) {
+					ast_log(LOG_ERROR, "Unable to init smsdb\n");
+				}
 				cli_register();
 
 				app_register();
