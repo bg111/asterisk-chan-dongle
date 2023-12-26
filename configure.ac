@@ -165,11 +165,13 @@ dnl AC_CHECK_TYPE(uint64_t, unsigned long long)
 
 AC_CHECK_SIZEOF(int)
 AC_CHECK_SIZEOF(long int)
+AC_CHECK_SIZEOF(long long int)
 AC_CHECK_SIZEOF(time_t)
 case "$ac_cv_sizeof_time_t" in
 ''|0) AC_MSG_ERROR([Could not find time_t type]);;
 $ac_cv_sizeof_int) AC_DEFINE([PRI_time_t], ["d"], [printf format for time_t]);;
 $ac_cv_sizeof_long_int) AC_DEFINE([PRI_time_t], ["ld"], [printf format for time_t]);;
+$ac_cv_sizeof_long_long_int) AC_DEFINE([PRI_time_t], ["lld"], [printf format for time_t]);;
 *) AC_MSG_ERROR([Could not find match size of time_t to printf format])
 esac
 
