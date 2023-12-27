@@ -1,9 +1,9 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 */
 
@@ -46,7 +46,7 @@ INLINE_DECL size_t rb_free (const struct ringbuffer* rb)
 
 EXPORT_DECL int rb_memcmp (const struct ringbuffer*, const char*, size_t);
 
-/*!< fill io vectors array with readed data (situable for writev()) and return number of io vectors updated  */
+/*!< fill io vectors array with read data (situable for writev()) and return number of io vectors updated  */
 EXPORT_DECL int rb_read_all_iov (const struct ringbuffer* rb, struct iovec iov[2]);
 
 /*!< fill io vectors array and return number of io vectors updated for reading len bytes */

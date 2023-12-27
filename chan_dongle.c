@@ -28,16 +28,15 @@
  * \author Dave Bowerman <david.bowerman@gmail.com>
  * \author Dmitry Vagin <dmitry2004@yandex.ru>
  * \author bg <bg_one@mail.ru>
+ * \author Max von Buelow <max@m9x.de>
  *
  * \ingroup channel_drivers
  */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
-
-#include <asterisk.h>
+#if ASTERISK_VERSION_NUM < 140000 /* 14- */
 ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
+#endif /* 14- */
 
 #include <asterisk/stringfields.h>	/* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/manager.h>
@@ -52,6 +51,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include <fcntl.h>			/* O_RDWR O_NOCTTY */
 #include <signal.h>			/* SIGURG */
 
+#include "ast_compat.h"			/* asterisk compatibility fixes */
+
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+#include <asterisk/stasis_channels.h>
+#include <asterisk/format_cache.h>
+#endif /* ^13+ */
+
 #include "chan_dongle.h"
 #include "at_response.h"		/* at_res_t */
 #include "at_queue.h"			/* struct at_queue_task_cmd at_queue_head_cmd() */
@@ -64,10 +70,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include "channel.h"			/* channel_queue_hangup() */
 #include "dc_config.h"			/* dc_uconfig_fill() dc_gconfig_fill() dc_sconfig_fill()  */
 #include "pdiscovery.h"			/* pdiscovery_lookup() pdiscovery_init() pdiscovery_fini() */
+#include "smsdb.h"
+#include "error.h"
 
 EXPORT_DEF const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
 EXPORT_DEF public_state_t * gpublic;
-
+#if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
+EXPORT_DEF struct ast_format chan_dongle_format;
+EXPORT_DEF struct ast_format_cap * chan_dongle_format_cap;
+#endif /* ^10-13 */
 
 static int public_state_init(struct public_state * state);
 
@@ -108,7 +119,11 @@ static int lock_build(const char * devname, char * buf, unsigned length)
 		basename = devname;
 
 	/* NOTE: use system system wide lock directory */
+	#if defined(__FreeBSD__)
+	return snprintf(buf, length, "/var/spool/lock/LCK..%s", basename);
+	#else
 	return snprintf(buf, length, "/var/lock/LCK..%s", basename);
+	#endif
 }
 
 #/* return 0 on error */
@@ -204,7 +219,7 @@ EXPORT_DEF int opentty (const char* dev, char ** lockfile)
 		return -1;
 	}
 
-	fd = open (dev, O_RDWR | O_NOCTTY);
+	fd = open(dev, O_RDWR | O_NOCTTY);
 	if (fd < 0)
 	{
 		flags = errno;
@@ -214,9 +229,14 @@ EXPORT_DEF int opentty (const char* dev, char ** lockfile)
 		ast_log (LOG_WARNING, "unable to open %s: %s\n", dev, strerror(flags));
 		return -1;
 	}
+	/* Put the terminal into exclusive mode. All other open(2)s by
+	 * non-root will fail with EBUSY. */
+	if (ioctl(fd, TIOCEXCL) != 0) {
+		ast_log(LOG_WARNING, "ioctl(TIOCEXCL) failed for %s: %s\n", dev, strerror(errno));
+	}
 
 	flags = fcntl(fd, F_GETFD);
-	if(flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1)
+	if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1)
 	{
 		flags = errno;
 		closetty(fd, lockfile);
@@ -285,9 +305,6 @@ static void disconnect_dongle (struct pvt* pvt)
 //	else
 	{
 		/* unaffected in case of restart */
-		pvt->use_ucs2_encoding = 0;
-		pvt->cusd_use_7bit_encoding = 0;
-		pvt->cusd_use_ucs2_decoding = 1;
 		pvt->gsm_reg_status = -1;
 		pvt->rssi = 0;
 		pvt->linkmode = 0;
@@ -308,12 +325,10 @@ static void disconnect_dongle (struct pvt* pvt)
 		pvt->has_sms = 0;
 		pvt->has_voice = 0;
 		pvt->has_call_waiting = 0;
-		pvt->use_pdu = 0;
 	}
 
 	pvt->connected		= 0;
 	pvt->initialized	= 0;
-	pvt->use_pdu		= 0;
 	pvt->has_call_waiting	= 0;
 
 	/* FIXME: LOST real device state */
@@ -321,7 +336,7 @@ static void disconnect_dongle (struct pvt* pvt)
 	pvt->ring = 0;
 	pvt->cwaiting = 0;
 	pvt->outgoing_sms = 0;
-	pvt->incoming_sms = 0;
+	pvt->incoming_sms_index = -1U;
 	pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
 
 	pvt->current_state = DEV_STATE_STOPPED;
@@ -337,6 +352,50 @@ static void disconnect_dongle (struct pvt* pvt)
 	manager_event_device_status(PVT_ID(pvt), "Disconnect");
 }
 
+#define SMS_INBOX_BIT(index)    ((sms_inbox_item_type)(1) << (index % SMS_INBOX_ITEM_BITS))
+#define SMS_INBOX_INDEX(index)  (index / SMS_INBOX_ITEM_BITS)
+
+static int is_sms_inbox_index_valid(const struct pvt* pvt, int index)
+{
+	if (index < 0 || index >= (int) SMS_INDEX_MAX) {
+		ast_log(LOG_WARNING, "[%s] SMS index [%d] out of range\n", PVT_ID(pvt), index);
+		return 0;
+	}
+
+	return 1;
+}
+
+EXPORT_DEF int sms_inbox_set(struct pvt* pvt, int index)
+{
+	if (!is_sms_inbox_index_valid(pvt, index)) {
+		return 0;
+	}
+
+	pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] |= SMS_INBOX_BIT(index);
+	return 1;
+}
+
+EXPORT_DEF int sms_inbox_clear(struct pvt* pvt, int index)
+{
+	if (!is_sms_inbox_index_valid(pvt, index)) {
+		return 0;
+	}
+
+	pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] &= ~SMS_INBOX_BIT(index);
+	return 1;
+}
+
+EXPORT_DEF int is_sms_inbox_set(const struct pvt* pvt, int index)
+{
+	if (!is_sms_inbox_index_valid(pvt, index)) {
+		return 0;
+	}
+
+	return pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] & SMS_INBOX_BIT(index);
+}
+
+#undef SMS_INBOX_INDEX
+#undef SMS_INBOX_BIT
 
 /* anybody wrote some to device before me, and not read results, clean pending results here */
 #/* */
@@ -346,16 +405,38 @@ EXPORT_DEF void clean_read_data(const char * devname, int fd)
 	struct ringbuffer rb;
 	int iovcnt;
 	int t;
-	
+
 	rb_init (&rb, buf, sizeof (buf));
 	for (t = 0; at_wait(fd, &t); t = 0)
 	{
 		iovcnt = at_read (fd, devname, &rb);
 		ast_debug (4, "[%s] drop %u bytes of pending data before initialization\n", devname, (unsigned)rb_used(&rb));
-		/* drop readed */
+		/* drop read */
 		rb_init (&rb, buf, sizeof (buf));
 		if (iovcnt == 0)
 			break;
+	}
+}
+
+static void handle_expired_reports(struct pvt *pvt)
+{
+	char dst[SMSDB_DST_MAX_LEN];
+	char payload[SMSDB_PAYLOAD_MAX_LEN];
+	ssize_t payload_len = smsdb_outgoing_purge_one(dst, payload);
+	if (payload_len >= 0) {
+		ast_verb (3, "[%s] TTL payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
+		channel_var_t vars[] =
+		{
+			{ "SMS_REPORT_PAYLOAD", payload },
+			{ "SMS_REPORT_TS", "" },
+			{ "SMS_REPORT_DT", "" },
+			{ "SMS_REPORT_SUCCESS", "0" },
+			{ "SMS_REPORT_TYPE", "t" },
+			{ "SMS_REPORT", "" },
+			{ NULL, NULL },
+		};
+		start_local_channel(pvt, "report", dst, vars);
+		manager_event_report(PVT_ID(pvt), payload, payload_len, "", "", 0, 2, "");
 	}
 }
 
@@ -390,12 +471,18 @@ static void* do_monitor_phone (void* data)
 	ast_copy_string(dev, PVT_ID(pvt), sizeof(dev));
 
 	clean_read_data(dev, fd);
-	
+
 	/* schedule dongle initilization  */
-	if (at_enque_initialization (&pvt->sys_chan, CMD_AT))
+	if (at_enqueue_initialization(&pvt->sys_chan, CMD_AT))
 	{
 		ast_log (LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
 		goto e_cleanup;
+	}
+
+	/* Poll first SMS, if any */
+	if (at_poll_sms(pvt) == 0)
+	{
+		ast_debug (1, "[%s] Polling first SMS message\n", PVT_ID(pvt));
 	}
 
 	ast_mutex_unlock (&pvt->lock);
@@ -404,6 +491,8 @@ static void* do_monitor_phone (void* data)
 	while (1)
 	{
 		ast_mutex_lock (&pvt->lock);
+
+		handle_expired_reports(pvt);
 
 		if (port_status (pvt->data_fd) || port_status (pvt->audio_fd))
 		{
@@ -432,7 +521,7 @@ static void* do_monitor_phone (void* data)
 				ast_log (LOG_ERROR, "[%s] timedout while waiting '%s' in response to '%s'\n", dev, at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
 				goto e_cleanup;
 			}
-			at_enque_ping(&pvt->sys_chan);
+			at_enqueue_ping(&pvt->sys_chan);
 			ast_mutex_unlock (&pvt->lock);
 			continue;
 		}
@@ -444,13 +533,16 @@ static void* do_monitor_phone (void* data)
 			break;
 		}
 
+		ast_mutex_lock (&pvt->lock);
 		PVT_STAT(pvt, d_read_bytes) += iovcnt;
+		ast_mutex_unlock (&pvt->lock);
+
 		while ((iovcnt = at_read_result_iov (dev, &read_result, &rb, iov)) > 0)
 		{
 			at_res = at_read_result_classification (&rb, iov[0].iov_len + iov[1].iov_len);
 
 			ast_mutex_lock (&pvt->lock);
-			PVT_STAT(pvt, at_responces) ++;
+			PVT_STAT(pvt, at_responses) ++;
 			if (at_response (pvt, iov, iovcnt, at_res) || at_queue_run(pvt))
 			{
 				goto e_cleanup;
@@ -526,39 +618,39 @@ static int pvt_discovery(struct pvt * pvt)
 		ast_copy_string(imei, CONF_UNIQ(pvt, imei), sizeof(imei));
 		ast_copy_string(imsi, CONF_UNIQ(pvt, imsi), sizeof(imsi));
 
-		ast_debug(3, "[%s] Trying ports discovery for%s%s%s%s\n", 
-			PVT_ID(pvt), 
-			imei[0] == 0 ? "" : " IMEI ", 
-			imei, 
-			imsi[0] == 0 ? "" : " IMSI ", 
+		ast_debug(3, "[%s] Trying ports discovery for%s%s%s%s\n",
+			PVT_ID(pvt),
+			imei[0] == 0 ? "" : " IMEI ",
+			imei,
+			imsi[0] == 0 ? "" : " IMSI ",
 			imsi
 			);
 		ast_mutex_unlock (&pvt->lock);
 //sleep(10); // test
 		resolved = pdiscovery_lookup(devname, imei, imsi, &data_tty, &audio_tty);
 		ast_mutex_lock (&pvt->lock);
-		
+
 		if(resolved) {
 			ast_copy_string (PVT_STATE(pvt, data_tty),  data_tty,  sizeof (PVT_STATE(pvt, data_tty)));
 			ast_copy_string (PVT_STATE(pvt, audio_tty), audio_tty, sizeof (PVT_STATE(pvt, audio_tty)));
 
 			ast_free(audio_tty);
 			ast_free(data_tty);
-			ast_verb (3, "[%s]%s%s%s%s found on data_tty=%s audio_tty=%s\n", 
-				PVT_ID(pvt), 
-				imei[0] == 0 ? "" : " IMEI ", 
-				imei, 
-				imsi[0] == 0 ? "" : " IMSI ", 
+			ast_verb (3, "[%s]%s%s%s%s found on data_tty=%s audio_tty=%s\n",
+				PVT_ID(pvt),
+				imei[0] == 0 ? "" : " IMEI ",
+				imei,
+				imsi[0] == 0 ? "" : " IMSI ",
 				imsi,
-				PVT_STATE(pvt, data_tty), 
+				PVT_STATE(pvt, data_tty),
 				PVT_STATE(pvt, audio_tty)
 				);
 		} else {
-			ast_debug(3, "[%s] Not found ports for%s%s%s%s\n", 
-				PVT_ID(pvt), 
-				imei[0] == 0 ? "" : " IMEI ", 
-				imei, 
-				imsi[0] == 0 ? "" : " IMSI ", 
+			ast_debug(3, "[%s] Not found ports for%s%s%s%s\n",
+				PVT_ID(pvt),
+				imei[0] == 0 ? "" : " IMEI ",
+				imei,
+				imsi[0] == 0 ? "" : " IMSI ",
 				imsi
 				);
 		}
@@ -573,36 +665,58 @@ static int pvt_discovery(struct pvt * pvt)
 #/* */
 static void pvt_start(struct pvt * pvt)
 {
+	long flags;
+
 	/* prevent start_monitor() multiple times and on turned off devices */
-	if (!pvt->connected && pvt->desired_state == DEV_STATE_STARTED)
-//	&& (pvt->monitor_thread == AST_PTHREADT_NULL || (pthread_kill(pvt->monitor_thread, 0) != 0 && errno == ESRCH)))
-	{
-		pvt_stop(pvt);
-
-		if(pvt_discovery(pvt))
-			return;
-		ast_verb (3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
-
-		pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock);
-		if (pvt->data_fd >= 0)
-		{
-			// TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
-			pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock);
-			if (pvt->audio_fd >= 0)
-			{
-				if (start_monitor (pvt))
-				{
-					pvt->connected = 1;
-					pvt->current_state = DEV_STATE_STARTED;
-					manager_event_device_status(PVT_ID(pvt), "Connect");
-					ast_verb (3, "[%s] Dongle has connected, initializing...\n", PVT_ID(pvt));
-					return;
-				}
-				closetty(pvt->audio_fd, &pvt->alock);
-			}
-			closetty(pvt->data_fd, &pvt->dlock);
-		}
+	if (pvt->connected || pvt->desired_state != DEV_STATE_STARTED) {
+		// || (pvt->monitor_thread != AST_PTHREADT_NULL &&
+		//     (pthread_kill(pvt->monitor_thread, 0) == 0 || errno != ESRCH))
+		return;
 	}
+
+	pvt_stop(pvt);
+
+	if (pvt_discovery(pvt)) {
+		return;
+	}
+
+	ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
+
+	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock);
+	if (pvt->data_fd < 0) {
+		return;
+	}
+
+	// TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
+	pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock);
+	if (pvt->audio_fd < 0) {
+		goto cleanup_datafd;
+	}
+
+	if (!start_monitor(pvt)) {
+		goto cleanup_audiofd;
+	}
+
+	/* Set data_fd and audio_fd to non-blocking. This appears to fix
+	 * incidental deadlocks occurring with Asterisk 12+ or with
+	 * jitterbuffer enabled. Apparently Asterisk can call the
+	 * (audio) read function for sockets that don't have data to
+	 * read(). */
+	flags = fcntl(pvt->data_fd, F_GETFL);
+	fcntl(pvt->data_fd, F_SETFL, flags | O_NONBLOCK);
+	flags = fcntl(pvt->audio_fd, F_GETFL);
+	fcntl(pvt->audio_fd, F_SETFL, flags | O_NONBLOCK);
+
+	pvt->connected = 1;
+	pvt->current_state = DEV_STATE_STARTED;
+	manager_event_device_status(PVT_ID(pvt), "Connect");
+	ast_verb(3, "[%s] Dongle has connected, initializing...\n", PVT_ID(pvt));
+	return;
+
+cleanup_audiofd:
+	closetty(pvt->audio_fd, &pvt->alock);
+cleanup_datafd:
+	closetty(pvt->data_fd, &pvt->dlock);
 }
 
 #/* */
@@ -646,8 +760,8 @@ static void * do_discovery(void * arg)
 				{
 					case DEV_STATE_RESTARTED:
 						pvt_stop(pvt);
-						/* passthru */
 						pvt->desired_state = DEV_STATE_STARTED;
+						/* fall through */
 					case DEV_STATE_STARTED:
 						pvt_start(pvt);
 						break;
@@ -851,17 +965,13 @@ EXPORT_DECL int pvt_enabled(const struct pvt * pvt)
 #/* */
 EXPORT_DEF int ready4voice_call(const struct pvt* pvt, const struct cpvt * current_cpvt, int opts)
 {
-	if(!pvt->connected 
-		|| 
-	   !pvt->initialized
-		|| 
-	   !pvt->has_voice 
-		|| 
-	   !pvt->gsm_registered 
-		|| 
-	   !pvt_enabled(pvt)
-	)
+	if(!pvt->connected
+		|| !pvt->initialized
+		|| !pvt->has_voice
+		|| !pvt->gsm_registered
+		|| !pvt_enabled(pvt)) {
 		return 0;
+	}
 
 	return is_dial_possible2(pvt, opts, current_cpvt);
 }
@@ -901,24 +1011,19 @@ EXPORT_DEF struct pvt * find_device_ex(struct public_state * state, const char *
 }
 
 #/* return locked pvt or NULL */
-EXPORT_DEF struct pvt * find_device_ext (const char * name, const char ** reason)
+EXPORT_DEF struct pvt * find_device_ext (const char * name)
 {
-	char * res = "";
 	struct pvt * pvt = find_device(name);
 
-	if(pvt)
-	{
-		if(!pvt_enabled(pvt))
-		{
+	if (pvt) {
+		if (!pvt_enabled(pvt)) {
 			ast_mutex_unlock (&pvt->lock);
-			res = "device disabled";
+			chan_dongle_err = E_DEVICE_DISABLED;
 			pvt = NULL;
 		}
+	} else {
+		chan_dongle_err = E_DEVICE_NOT_FOUND;
 	}
-	else
-		res = "no such device";
-	if(reason)
-		*reason = res;
 	return pvt;
 }
 
@@ -967,9 +1072,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 		group = (int) strtol (&resource[1], (char**) NULL, 10);
 		if (errno != EINVAL)
 		{
-//			ast_mutex_lock(&state->round_robin_mtx);
-
-			/* Generate a list of all availible devices */
+			/* Generate a list of all available devices */
 			j = ITEMS_OF (round_robin);
 			c = 0; last_used = 0;
 			AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
@@ -995,7 +1098,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				ast_mutex_unlock (&pvt->lock);
 			}
 
-			/* Search for a availible device starting at the last used device */
+			/* Search for a available device starting at the last used device */
 			for (i = 0, j = last_used + 1; i < c; i++, j++)
 			{
 				if (j == c)
@@ -1015,15 +1118,11 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 				}
 				ast_mutex_unlock (&pvt->lock);
 			}
-
-//			ast_mutex_unlock(&state->round_robin_mtx);
 		}
 	}
 	else if (((resource[0] == 'p') || (resource[0] == 'P')) && resource[1] == ':')
 	{
-//		ast_mutex_lock(&state->round_robin_mtx);
-
-		/* Generate a list of all availible devices */
+		/* Generate a list of all available devices */
 		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
 		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
@@ -1049,7 +1148,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_unlock (&pvt->lock);
 		}
 
-		/* Search for a availible device starting at the last used device */
+		/* Search for a available device starting at the last used device */
 		for (i = 0, j = last_used + 1; i < c; i++, j++)
 		{
 			if (j == c)
@@ -1069,14 +1168,10 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			}
 			ast_mutex_unlock (&pvt->lock);
 		}
-
-//		ast_mutex_unlock(&state->round_robin_mtx);
 	}
 	else if (((resource[0] == 's') || (resource[0] == 'S')) && resource[1] == ':')
 	{
-//		ast_mutex_lock(&state->round_robin_mtx);
-
-		/* Generate a list of all availible devices */
+		/* Generate a list of all available devices */
 		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
 		i = strlen (&resource[2]);
@@ -1104,7 +1199,7 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			ast_mutex_unlock (&pvt->lock);
 		}
 
-		/* Search for a availible device starting at the last used device */
+		/* Search for a available device starting at the last used device */
 		for (i = 0, j = last_used + 1; i < c; i++, j++)
 		{
 			if (j == c)
@@ -1124,8 +1219,6 @@ EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, 
 			}
 			ast_mutex_unlock (&pvt->lock);
 		}
-
-//		ast_mutex_unlock(&state->round_robin_mtx);
 	}
 	else if (((resource[0] == 'i') || (resource[0] == 'I')) && resource[1] == ':')
 	{
@@ -1205,7 +1298,7 @@ EXPORT_DEF const char* pvt_str_state(const struct pvt* pvt)
 			state = pvt_call_dir(pvt);
 		else if(PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0)
 			state = "Held";
-		else if(pvt->outgoing_sms || pvt->incoming_sms)
+		else if(pvt->outgoing_sms || pvt->incoming_sms_index != -1U)
 			state = "SMS";
 		else
 			state = "Free";
@@ -1243,7 +1336,7 @@ EXPORT_DEF struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
 		if(PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0)
 			ast_str_append (&buf, 0, "Held %u ", PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]));
 
-		if(pvt->incoming_sms)
+		if(pvt->incoming_sms_index != -1U)
 			ast_str_append (&buf, 0, "Incoming SMS ");
 
 		if(pvt->outgoing_sms)
@@ -1401,8 +1494,8 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 		pvt->audio_fd			= -1;
 		pvt->data_fd			= -1;
 		pvt->timeout			= DATA_READ_TIMEOUT;
-		pvt->cusd_use_ucs2_decoding	=  1;
 		pvt->gsm_reg_status		= -1;
+		pvt->incoming_sms_index		= -1U;
 
 		ast_copy_string (pvt->provider_name, "NONE", sizeof (pvt->provider_name));
 		ast_copy_string (pvt->subscriber_number, "Unknown", sizeof (pvt->subscriber_number));
@@ -1428,7 +1521,7 @@ static int pvt_time4restate(const struct pvt * pvt)
 {
 	if(pvt->desired_state != pvt->current_state)
 	{
-		if(pvt->restart_time == RESTATE_TIME_NOW || (PVT_NO_CHANS(pvt) && !pvt->outgoing_sms && !pvt->incoming_sms))
+		if(pvt->restart_time == RESTATE_TIME_NOW || (PVT_NO_CHANS(pvt) && !pvt->outgoing_sms && pvt->incoming_sms_index == -1U))
 			return 1;
 	}
 	return 0;
@@ -1459,29 +1552,19 @@ static int pvt_reconfigure(struct pvt * pvt, const pvt_config_t * settings, rest
 		/* check what changes require starting or stopping */
 		if(pvt->desired_state != SCONFIG(settings, initstate)) {
 			pvt->desired_state = SCONFIG(settings, initstate);
-			
+
 			rv = pvt_time4restate(pvt);
 			pvt->restart_time = rv ? RESTATE_TIME_NOW : when;
 		}
 
 		/* check what config changes require restaring */
-		else if(
-		   strcmp(UCONFIG(settings, audio_tty), CONF_UNIQ(pvt, audio_tty))
-			||
-		   strcmp(UCONFIG(settings, data_tty), CONF_UNIQ(pvt, data_tty))
-			||
-		   strcmp(UCONFIG(settings, imei), CONF_UNIQ(pvt, imei))
-			||
-		   strcmp(UCONFIG(settings, imsi), CONF_UNIQ(pvt, imsi))
-			||
-		   SCONFIG(settings, u2diag) != CONF_SHARED(pvt, u2diag)
-			||
-		   SCONFIG(settings, resetdongle) != CONF_SHARED(pvt, resetdongle)
-			||
-		   SCONFIG(settings, smsaspdu) != CONF_SHARED(pvt, smsaspdu)
-			||
-		   SCONFIG(settings, callwaiting) != CONF_SHARED(pvt, callwaiting)
-		   )
+		else if(strcmp(UCONFIG(settings, audio_tty), CONF_UNIQ(pvt, audio_tty))
+			|| strcmp(UCONFIG(settings, data_tty), CONF_UNIQ(pvt, data_tty))
+			|| strcmp(UCONFIG(settings, imei), CONF_UNIQ(pvt, imei))
+			|| strcmp(UCONFIG(settings, imsi), CONF_UNIQ(pvt, imsi))
+			|| SCONFIG(settings, u2diag) != CONF_SHARED(pvt, u2diag)
+			|| SCONFIG(settings, resetdongle) != CONF_SHARED(pvt, resetdongle)
+			|| SCONFIG(settings, callwaiting) != CONF_SHARED(pvt, callwaiting))
 		{
 			/* TODO: schedule restart */
 			pvt->desired_state = DEV_STATE_RESTARTED;
@@ -1647,21 +1730,45 @@ static int load_module()
 static int public_state_init(struct public_state * state)
 {
 	int rv = AST_MODULE_LOAD_DECLINE;
-	
+
 	AST_RWLIST_HEAD_INIT(&state->devices);
 	ast_mutex_init(&state->discovery_lock);
 
 	state->discovery_thread = AST_PTHREADT_NULL;
-//	ast_mutex_init(&state->round_robin_mtx);
 
 	if(reload_config(state, 0, RESTATE_TIME_NOW, NULL) == 0)
 	{
 		rv = AST_MODULE_LOAD_FAILURE;
 		if(discovery_restart(state) == 0)
 		{
+
+			/* set preferred capabilities */
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+			if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+				return AST_MODULE_LOAD_FAILURE;
+			}
+			ast_format_cap_append(channel_tech.capabilities, ast_format_slin, 0);
+#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
+			ast_format_set(&chan_dongle_format, AST_FORMAT_SLINEAR, 0);
+# if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
+			if (!(channel_tech.capabilities = ast_format_cap_alloc(0))) {
+				return AST_MODULE_LOAD_FAILURE;
+			}
+# else
+			if (!(channel_tech.capabilities = ast_format_cap_alloc())) {
+				return AST_MODULE_LOAD_FAILURE;
+			}
+# endif
+			ast_format_cap_add(channel_tech.capabilities, &chan_dongle_format);
+			chan_dongle_format_cap = channel_tech.capabilities;
+#endif /* ^10-13 */
+
 			/* register our channel type */
 			if(ast_channel_register(&channel_tech) == 0)
 			{
+				if (smsdb_init() != 0) {
+					ast_log(LOG_ERROR, "Unable to init smsdb\n");
+				}
 				cli_register();
 
 				app_register();
@@ -1671,6 +1778,12 @@ static int public_state_init(struct public_state * state)
 			}
 			else
 			{
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+				ao2_cleanup(channel_tech.capabilities);
+				channel_tech.capabilities = NULL;
+#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
+				channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
+#endif /* ^10-13 */
 				ast_log (LOG_ERROR, "Unable to register channel class %s\n", channel_tech.type);
 			}
 			discovery_stop(state);
@@ -1686,7 +1799,6 @@ static int public_state_init(struct public_state * state)
 		ast_log (LOG_ERROR, "Errors reading config file " CONFIG_FILE ", Not loading module\n");
 	}
 
-//	ast_mutex_destroy(&state->round_robin_mtx);
 	ast_mutex_destroy(&state->discovery_lock);
 	AST_RWLIST_HEAD_DESTROY(&state->devices);
 
@@ -1698,6 +1810,12 @@ static void public_state_fini(struct public_state * state)
 {
 	/* First, take us out of the channel loop */
 	ast_channel_unregister (&channel_tech);
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	ao2_cleanup(channel_tech.capabilities);
+	channel_tech.capabilities = NULL;
+#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
+	channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
+#endif /* ^10-13 */
 
 	/* Unregister the CLI & APP & MANAGER */
 
@@ -1709,8 +1827,7 @@ static void public_state_fini(struct public_state * state)
 
 	discovery_stop(state);
 	devices_destroy(state);
-	
-//	ast_mutex_destroy(&state->round_robin_mtx);
+
 	ast_mutex_destroy(&state->discovery_lock);
 	AST_RWLIST_HEAD_DESTROY(&state->devices);
 }
@@ -1720,8 +1837,9 @@ static int unload_module()
 
 	public_state_fini(gpublic);
 	pdiscovery_fini();
-	
+
 	ast_free(gpublic);
+	smsdb_atexit();
 	gpublic = NULL;
 	return 0;
 }
@@ -1744,14 +1862,20 @@ static int reload_module()
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, MODULE_DESCRIPTION,
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+		.support_level = AST_MODULE_SUPPORT_EXTENDED,
+#endif /* ^13+ */
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload_module,
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+		.load_pri = AST_MODPRI_CHANNEL_DRIVER,
+#endif /* ^13+ */
 	       );
 
 //AST_MODULE_INFO_STANDARD (ASTERISK_GPL_KEY, MODULE_DESCRIPTION);
 
-EXPORT_DEF struct ast_module* self_module()
+EXPORT_DEF struct ast_module* self_module(void)
 {
 	return ast_module_info->self;
 }

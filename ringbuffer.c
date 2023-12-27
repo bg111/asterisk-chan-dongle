@@ -1,14 +1,12 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
 #include "memmem.h"
 #include <string.h>			/* memchr() */
@@ -35,7 +33,7 @@ EXPORT_DEF int rb_memcmp (const struct ringbuffer* rb, const char* mem, size_t l
 				}
 			}
 		}
-		else 
+		else
 		{
 			if (memcmp (rb->buffer + rb->read, mem, len) == 0)
 			{
@@ -119,7 +117,7 @@ EXPORT_DEF int rb_read_until_char_iov (const struct ringbuffer* rb, struct iovec
 				iov[1].iov_len = 0;
 				return 1;
 			}
-		
+
 			if ((p = memchr (rb->buffer, c, rb->used - iov[0].iov_len)) != NULL)
 			{
 				iov[1].iov_base = rb->buffer;
@@ -127,7 +125,7 @@ EXPORT_DEF int rb_read_until_char_iov (const struct ringbuffer* rb, struct iovec
 				return 2;
 			}
 		}
-		else 
+		else
 		{
 			iov[0].iov_base = rb->buffer + rb->read;
 			iov[0].iov_len  = rb->used;
@@ -205,14 +203,14 @@ EXPORT_DEF int rb_read_until_mem_iov (const struct ringbuffer* rb, struct iovec 
 						iov[1].iov_len = 0;
 						return 1;
 					}
-				
+
 					iov[1].iov_base = rb->buffer;
 					iov[1].iov_len = p - rb->buffer;
 					return 2;
 				}
 			}
 		}
-		else 
+		else
 		{
 			iov[0].iov_base = rb->buffer + rb->read;
 			iov[0].iov_len  = rb->used;

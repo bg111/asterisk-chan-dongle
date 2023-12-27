@@ -9,18 +9,15 @@
    Copyright (C) 2010 - 2011
    bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE			/* vasprintf() in asterisk/utils.h */
 #endif /* #ifndef _GNU_SOURCE */
 
+#include "ast_config.h"
+
 #include <sys/types.h>
 #include <errno.h>
 
-#include <asterisk.h>
 #include <asterisk/channel.h>		/* ast_waitfor_n_fd() */
 #include <asterisk/logger.h>		/* ast_debug() */
 
@@ -51,7 +48,7 @@ EXPORT_DEF int at_wait (int fd, int* ms)
 	return outfd;
 }
 
-#/* return number of bytes readed */
+#/* return number of bytes read */
 EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 {
 	struct iovec	iov[2];
@@ -79,7 +76,7 @@ EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 		{
 			rb_write_upd (rb, n);
 
-			ast_debug (5, "[%s] receive %zu byte, used %zu, free %zu, read %zu, write %zu\n", 
+			ast_debug (5, "[%s] receive %zu byte, used %zu, free %zu, read %zu, write %zu\n",
 				dev, n, rb_used (rb), rb_free (rb), rb->read, rb->write);
 
 			iovcnt = rb_read_all_iov (rb, iov);

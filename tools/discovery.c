@@ -32,14 +32,14 @@ char * read_result(int fd)
 	unsigned total = 0;
 	char buf[4096];
 	char * found;
-	int readed;
+	int read_bytes;
 	
 	while(1) {
-		readed = read(fd, buf + total, sizeof(buf) - total);
-		if(readed <= 0)
+		read_bytes = read(fd, buf + total, sizeof(buf) - total);
+		if(read_bytes <= 0)
 			return NULL;
-		total += readed;
-//		fprintf(stdout, "%*s", readed, buf);
+		total += read_bytes;
+//		fprintf(stdout, "%*s", read_bytes, buf);
 		if((found = memmem(buf, total, "\r\nOK\r\n", 6)) != NULL) {
 			found[0] = 0;
 			return strdup(buf);

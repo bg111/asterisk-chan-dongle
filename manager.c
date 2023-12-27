@@ -1,28 +1,29 @@
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+/* Required outside the BUILD_MANAGER #ifdef! */
+#include "ast_config.h"
 
 #ifdef BUILD_MANAGER /* no manager, no copyright */
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
 */
 
-#include <asterisk.h>
 #include <asterisk/stringfields.h>		/* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/manager.h>			/* struct mansession, struct message ... */
 #include <asterisk/strings.h>			/* ast_strlen_zero() */
 #include <asterisk/callerid.h>			/* ast_describe_caller_presentation */
 
+#include "ast_compat.h"				/* asterisk compatibility fixes */
+
 #include "manager.h"
 #include "chan_dongle.h"			/* devices */
 #include "helpers.h"				/* ITEMS_OF() send_ccwa_set() send_reset() send_sms() send_ussd() */
+#include "error.h"
 
 static char * espace_newlines(const char * text);
 
@@ -63,7 +64,6 @@ static int manager_show_devices (struct mansession* s, const struct message* m)
 			astman_append (s, "AutoDeleteSMS: %s\r\n", CONF_SHARED(pvt, autodeletesms) ? "Yes" : "No");
 			astman_append (s, "DisableSMS: %s\r\n", CONF_SHARED(pvt, disablesms) ? "Yes" : "No");
 			astman_append (s, "ResetDongle: %s\r\n", CONF_SHARED(pvt, resetdongle) ? "Yes" : "No");
-			astman_append (s, "SMSPDU: %s\r\n", CONF_SHARED(pvt, smsaspdu) ? "Yes" : "No");
 			astman_append (s, "CallWaitingSetting: %s\r\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
 			astman_append (s, "DTMF: %s\r\n", dc_dtmf_setting2str(CONF_SHARED(pvt, dtmf)));
 			astman_append (s, "MinimalDTMFGap: %d\r\n", CONF_SHARED(pvt, mindtmfgap));
@@ -89,9 +89,6 @@ static int manager_show_devices (struct mansession* s, const struct message* m)
 			astman_append (s, "CellID: %s\r\n", pvt->cell_id);
 			astman_append (s, "SubscriberNumber: %s\r\n", pvt->subscriber_number);
 			astman_append (s, "SMSServiceCenter: %s\r\n", pvt->sms_scenter);
-			astman_append (s, "UseUCS2Encoding: %s\r\n", pvt->use_ucs2_encoding ? "Yes" : "No");
-			astman_append (s, "USSDUse7BitEncoding: %s\r\n", pvt->cusd_use_7bit_encoding ? "Yes" : "No");
-			astman_append (s, "USSDUseUCS2Decoding: %s\r\n", pvt->cusd_use_ucs2_decoding ? "Yes" : "No");
 			astman_append (s, "TasksInQueue: %u\r\n", PVT_STATE(pvt, at_tasks));
 			astman_append (s, "CommandsInQueue: %u\r\n", PVT_STATE(pvt, at_cmds));
 			astman_append (s, "CallWaitingState: %s\r\n", pvt->has_call_waiting ? "Enabled" : "Disabled");
@@ -118,7 +115,7 @@ static int manager_show_devices (struct mansession* s, const struct message* m)
 	astman_append (s, "Event: DongleShowDevicesComplete\r\n");
 	if(!ast_strlen_zero (id))
 		astman_append (s, "ActionID: %s\r\n", id);
-	astman_append (s, 
+	astman_append (s,
 		"EventList: Complete\r\n"
 		"ListItems: %zu\r\n"
 		"\r\n",
@@ -134,9 +131,6 @@ static int manager_send_ussd (struct mansession* s, const struct message* m)
 	const char*	ussd	= astman_get_header (m, "USSD");
 
 	char		buf[256];
-	const char*	msg;
-	int		status;
-	void * msgid = NULL;
 
 	if (ast_strlen_zero (device))
 	{
@@ -150,16 +144,9 @@ static int manager_send_ussd (struct mansession* s, const struct message* m)
 		return 0;
 	}
 
-	msg = send_ussd(device, ussd, &status, &msgid);
-	snprintf(buf, sizeof (buf), "[%s] %s\r\nID: %p", device, msg, msgid);
-	if(status)
-	{
-		astman_send_ack(s, m, buf);
-	}
-	else
-	{
-		astman_send_error(s, m, buf);
-	}
+	int res = send_ussd(device, ussd);
+	snprintf(buf, sizeof (buf), "[%s] %s", device, res < 0 ? error2str(chan_dongle_err) : "USSD queued for send");
+	(res == 0 ? astman_send_ack : astman_send_error)(s, m, buf);
 
 	return 0;
 }
@@ -168,15 +155,13 @@ static int manager_send_sms (struct mansession* s, const struct message* m)
 {
 	const char*	device	= astman_get_header (m, "Device");
 	const char*	number	= astman_get_header (m, "Number");
-	const char*	message	= astman_get_header (m, "Message");
+	const char*	message	= astman_get_header (m, "Message"); /* may contain C-escapes */
 	const char*	validity= astman_get_header (m, "Validity");
 	const char*	report	= astman_get_header (m, "Report");
+	const char*	payload	= astman_get_header (m, "Payload");
 
 	char		buf[256];
-	const char*	msg;
-	int		status;
-	void * msgid;
-	
+
 	if (ast_strlen_zero (device))
 	{
 		astman_send_error (s, m, "Device not specified");
@@ -195,69 +180,40 @@ static int manager_send_sms (struct mansession* s, const struct message* m)
 		return 0;
 	}
 
-	msg = send_sms(device, number, message, validity, report, &status, &msgid);
-	snprintf (buf, sizeof (buf), "[%s] %s\r\nID: %p", device, msg, msgid);
-	if(status)
-	{
-		astman_send_ack(s, m, buf);
-	}
-	else
-	{
-		astman_send_error(s, m, buf);
-	}
+	char* unescaped_msg = ast_strdup(message);
 
-	return 0;
-}
-
-static int manager_send_pdu (struct mansession* s, const struct message* m)
-{
-	const char*	device	= astman_get_header (m, "Device");
-	const char*	pdu	= astman_get_header (m, "PDU");
-
-	char		buf[256];
-	const char*	msg;
-	int		status;
-	void * msgid;
-	
-	if (ast_strlen_zero (device))
+	if (unescaped_msg == NULL)
 	{
-		astman_send_error (s, m, "Device not specified");
+		astman_send_error (s, m, "Internal memory error");
 		return 0;
 	}
 
-	if (ast_strlen_zero (pdu))
-	{
-		astman_send_error (s, m, "PDU not specified");
-		return 0;
-	}
-
-	msg = send_pdu(device, pdu, &status, &msgid);
-	snprintf (buf, sizeof (buf), "[%s] %s\r\nID: %p", device, msg, msgid);
-	if(status)
-	{
-		astman_send_ack(s, m, buf);
-	}
-	else
-	{
-		astman_send_error(s, m, buf);
-	}
+	ast_unescape_c(unescaped_msg);
+	int res = send_sms(device, number, unescaped_msg, validity, report, payload, strlen(payload) + 1);
+	ast_free(unescaped_msg);
+	snprintf(buf, sizeof (buf), "[%s] %s", device, res < 0 ? error2str(chan_dongle_err) : "SMS queued for send");
+	(res == 0 ? astman_send_ack : astman_send_error)(s, m, buf);
 
 	return 0;
 }
 
 #/* */
-EXPORT_DEF void manager_event_sent_notify(const char * devname, const char * type, const void * id, const char * result)
+EXPORT_DEF void manager_event_report(const char * devname, const char *payload, size_t payload_len, const char *scts, const char *dt, int success, int type, const char *report_str)
 {
-	char buf[40];
-	snprintf(buf, sizeof(buf), "Dongle%sStatus", type);
-
-	manager_event (EVENT_FLAG_CALL, buf,
+	manager_event (EVENT_FLAG_CALL, "DongleReport",
 		"Device: %s\r\n"
-		"ID: %p\r\n"
-		"Status: %s\r\n",
+		"Payload: %.*s\r\n"
+		"SCTS: %s\r\n"
+		"DT: %s\r\n"
+		"Success: %d\r\n"
+		"Type: %d\r\n"
+		"Report: %s\r\n",
 		devname,
-		id,
-		result
+		(int) payload_len, payload,
+		scts, dt,
+		success,
+		type,
+		report_str
 	);
 }
 
@@ -342,11 +298,11 @@ static char * espace_newlines(const char * text)
 				escaped[j++] = 'n';
 			} else {
 				escaped[j++] = text[i];
-			}	
+			}
 		}
 		escaped[j] = 0;
 	}
-	
+
 	return escaped;
 }
 
@@ -454,8 +410,6 @@ static int manager_ccwa_set (struct mansession* s, const struct message* m)
 //	const char*	id	= astman_get_header (m, "ActionID");
 
 	char		buf[256];
-	const char*	msg;
-	int		status;
 	call_waiting_t	enable;
 
 	if (ast_strlen_zero (device))
@@ -474,9 +428,9 @@ static int manager_ccwa_set (struct mansession* s, const struct message* m)
 		return 0;
 	}
 
-	msg = send_ccwa_set(device, enable, &status);
-	snprintf (buf, sizeof (buf), "[%s] %s", device, msg);
-	(status ? astman_send_ack : astman_send_error)(s, m, buf);
+	int res = send_ccwa_set(device, enable);
+	snprintf (buf, sizeof (buf), "[%s] %s", device, res < 0 ? error2str(chan_dongle_err) : "Call-Waiting commands queued for execute");
+	(res == 0 ? astman_send_ack : astman_send_error)(s, m, buf);
 
 //	if(!ast_strlen_zero(id))
 //		astman_append (s, "ActionID: %s\r\n", id);
@@ -490,8 +444,6 @@ static int manager_reset (struct mansession* s, const struct message* m)
 //	const char*	id	= astman_get_header (m, "ActionID");
 
 	char		buf[256];
-	const char*	msg;
-	int		status;
 
 	if (ast_strlen_zero (device))
 	{
@@ -499,9 +451,9 @@ static int manager_reset (struct mansession* s, const struct message* m)
 		return 0;
 	}
 
-	msg = send_reset(device, &status);
-	snprintf (buf, sizeof (buf), "[%s] %s", device, msg);
-	(status ? astman_send_ack : astman_send_error)(s, m, buf);
+	int res = send_reset(device);
+	snprintf (buf, sizeof (buf), "[%s] %s", device, res < 0 ? error2str(chan_dongle_err) : "Reset command queued for execute");
+	(res == 0 ? astman_send_ack : astman_send_error)(s, m, buf);
 
 //	if(!ast_strlen_zero(id))
 //		astman_append (s, "ActionID: %s\r\n", id);
@@ -519,8 +471,7 @@ static int manager_restart_action(struct mansession * s, const struct message * 
 //	const char * id = astman_get_header (m, "ActionID");
 
 	char buf[256];
-	const char * msg;
-	int status;
+	int res;
 	unsigned i;
 
 	if (ast_strlen_zero (device))
@@ -533,9 +484,9 @@ static int manager_restart_action(struct mansession * s, const struct message * 
 	{
 		if(event == DEV_STATE_STARTED || strcasecmp(when, b_choices[i]) == 0)
 		{
-			msg = schedule_restart_event(event, i, device, &status);
-			snprintf (buf, sizeof (buf), "[%s] %s", device, msg);
-			(status ? astman_send_ack : astman_send_error)(s, m, buf);
+			res = schedule_restart_event(event, i, device);
+			snprintf(buf, sizeof (buf), "[%s] %s", device, res < 0 ? error2str(chan_dongle_err) : dev_state2str_msg(event));
+			(res == 0 ? astman_send_ack : astman_send_error)(s, m, buf);
 //			if(!ast_strlen_zero(id))
 //				astman_append (s, "ActionID: %s\r\n", id);
 			return 0;
@@ -605,13 +556,13 @@ static const struct dongle_manager
 	const char*	name;
 	const char*	brief;
 	const char*	desc;
-} dcm[] = 
+} dcm[] =
 {
 	{
-	manager_show_devices, 
+	manager_show_devices,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING,
-	"DongleShowDevices", 
-	"List Dongle devices", 
+	"DongleShowDevices",
+	"List Dongle devices",
 	"Description: Lists Dongle devices in text format with details on current status.\n\n"
 	"DongleShowDevicesComplete.\n"
 	"Variables:\n"
@@ -619,43 +570,35 @@ static const struct dongle_manager
 	"	Device:   <name>	Optional name of device.\n"
 	},
 	{
-	manager_send_ussd, 
+	manager_send_ussd,
 	EVENT_FLAG_CALL,
-	"DongleSendUSSD", 
+	"DongleSendUSSD",
 	"Send a ussd command to the dongle.",
 	"Description: Send a ussd message to a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
-	"	*Device:  <device>	The dongle to which the ussd code will be send.\n"
-	"	*USSD:    <code>	The ussd code that will be send to the device.\n"
+	"	*Device:  <device>	The dongle to which the ussd code will be sent.\n"
+	"	*USSD:    <code>	The ussd code that will be sent to the device.\n"
 	 },
 	{
-	manager_send_sms, 
+	manager_send_sms,
 	EVENT_FLAG_CALL,
-	"DongleSendSMS", 
-	"Send a SMS message.", 
+	"DongleSendSMS",
+	"Send a SMS message.",
 	"Description: Send a SMS message from a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
 	"	*Device:  <device>	The dongle to which the SMS be send.\n"
-	"	*Number:  <number>	The phone number to which the SMS will be send.\n"
-	"	*Message: <message>	The SMS message that will be send.\n"
+	"	*Number:  <number>	The phone number to which the SMS will be sent.\n"
+	"	*Message: <message>	The SMS message that will be sent (standard backslash escape sequences are used, e.g. '\\n' for newline).\n"
+	"	*Validity: <message>	Validity period in minutes.\n"
+	"	*Report: <message>	Boolean flag for report request.\n"
+	"	*Payload: <message>	Unstructured data that will be included in delivery report.\n"
 	},
 	{
-	manager_send_pdu, 
-	EVENT_FLAG_CALL,
-	"DongleSendPDU", 
-	"Send a PDU of message.", 
-	"Description: Send a PDU of message from a dongle.\n\n"
-	"Variables: (Names marked with * are required)\n"
-	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
-	"	*Device:  <device>	The dongle to which the PDU be send.\n"
-	"	*PDU:     <PDU>		The PDU of SMS.\n"
-	},
-	{
-	manager_ccwa_set, 
+	manager_ccwa_set,
 	EVENT_FLAG_CONFIG,
-	"DongleSetCCWA", 
+	"DongleSetCCWA",
 	"Enable/Disabled Call-Waiting on a dongle.",
 	"Description: Enable/Disabled Call-Waiting on a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
@@ -666,8 +609,8 @@ static const struct dongle_manager
 	{
 	manager_reset,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleReset", 
-	"Reset a dongle.", 
+	"DongleReset",
+	"Reset a dongle.",
 	"Description: Reset a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -676,8 +619,8 @@ static const struct dongle_manager
 	{
 	manager_restart,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleRestart", 
-	"Restart a dongle.", 
+	"DongleRestart",
+	"Restart a dongle.",
 	"Description: Restart a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -687,8 +630,8 @@ static const struct dongle_manager
 	{
 	manager_stop,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleStop", 
-	"Stop a dongle.", 
+	"DongleStop",
+	"Stop a dongle.",
 	"Description: Stop a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -698,8 +641,8 @@ static const struct dongle_manager
 	{
 	manager_start,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleStart", 
-	"Start a dongle.", 
+	"DongleStart",
+	"Start a dongle.",
 	"Description: Start a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -708,8 +651,8 @@ static const struct dongle_manager
 	{
 	manager_remove,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleRemove", 
-	"Remove a dongle.", 
+	"DongleRemove",
+	"Remove a dongle.",
 	"Description: Remove a dongle.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -719,8 +662,8 @@ static const struct dongle_manager
 	{
 	manager_reload,
 	EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG,
-	"DongleReload", 
-	"Reload a module configuration.", 
+	"DongleReload",
+	"Reload a module configuration.",
 	"Description: Reload the module configuration.\n\n"
 	"Variables: (Names marked with * are required)\n"
 	"	ActionID: <id>		Action ID for this transaction. Will be returned.\n"
@@ -731,9 +674,20 @@ static const struct dongle_manager
 EXPORT_DEF void manager_register()
 {
 	unsigned i;
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	struct ast_module* module = self_module();
+#endif /* ^13+ */
+
 	for(i = 0; i < ITEMS_OF(dcm); i++)
 	{
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func,
+			module, dcm[i].brief, dcm[i].desc);
+#elif ASTERISK_VERSION_NUM >= 110000 /* 11+ */
+		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, NULL, dcm[i].brief, dcm[i].desc);
+#else /* 11- */
 		ast_manager_register2 (dcm[i].name, dcm[i].authority, dcm[i].func, dcm[i].brief, dcm[i].desc);
+#endif /* ^11- */
 	}
 }
 

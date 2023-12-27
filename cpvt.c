@@ -1,14 +1,11 @@
 /*
    Copyright (C) 2010,2011 bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <asterisk.h>
 #include <asterisk/utils.h>
 
 #include "cpvt.h"
@@ -65,7 +62,7 @@ EXPORT_DEF struct cpvt * cpvt_alloc(struct pvt * pvt, int call_idx, unsigned dir
 				pvt_on_create_1st_channel(pvt);
 			PVT_STATE(pvt, chansno)++;
 			PVT_STATE(pvt, chan_count[cpvt->state])++;
-			
+
 
 
 			ast_debug (3, "[%s] create cpvt for call_idx %d dir %d state '%s'\n",  PVT_ID(pvt), call_idx, dir, call_state2str(state));

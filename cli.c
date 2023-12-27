@@ -1,26 +1,26 @@
-/* 
+/*
    Copyright (C) 2009 - 2010
-   
+
    Artem Makhutov <artem@makhutov.org>
    http://www.makhutov.org
-   
+
    Dmitry Vagin <dmitry2004@yandex.ru>
 
    bg <bg_one@mail.ru>
 */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "ast_config.h"
 
 #include <asterisk.h>
 #include <asterisk/cli.h>			/* struct ast_cli_entry; struct ast_cli_args */
 #include <asterisk/callerid.h>			/* ast_describe_caller_presentation() */
-#include <asterisk/version.h>			/* ASTERISK_VERSION_NUM */
+
+#include "ast_compat.h"				/* asterisk compatibility fixes */
 
 #include "cli.h"
 #include "chan_dongle.h"			/* devices */
 #include "helpers.h"				/* ITEMS_OF() send_ccwa_set() send_reset() send_sms() send_ussd() */
 #include "pdiscovery.h"				/* pdiscovery_list_begin() pdiscovery_list_next() pdiscovery_list_end() */
+#include "error.h"
 
 static const char * restate2str_msg(restate_time_t when);
 
@@ -145,7 +145,6 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Auto delete SMS         : %s\n", CONF_SHARED(pvt, autodeletesms) ? "Yes" : "No");
 		ast_cli (a->fd, "  Disable SMS             : %s\n", CONF_SHARED(pvt, disablesms) ? "Yes" : "No");
 		ast_cli (a->fd, "  Reset Dongle            : %s\n", CONF_SHARED(pvt, resetdongle) ? "Yes" : "No");
-		ast_cli (a->fd, "  SMS PDU                 : %s\n", CONF_SHARED(pvt, smsaspdu) ? "Yes" : "No");
 		ast_cli (a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
 		ast_cli (a->fd, "  DTMF                    : %s\n", dc_dtmf_setting2str(CONF_SHARED(pvt, dtmf)));
 		ast_cli (a->fd, "  Minimal DTMF Gap        : %d\n", CONF_SHARED(pvt, mindtmfgap));
@@ -216,16 +215,13 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "  Cell ID                 : %s\n", pvt->cell_id);
 		ast_cli (a->fd, "  Subscriber Number       : %s\n", pvt->subscriber_number);
 		ast_cli (a->fd, "  SMS Service Center      : %s\n", pvt->sms_scenter);
-		ast_cli (a->fd, "  Use UCS-2 encoding      : %s\n", pvt->use_ucs2_encoding ? "Yes" : "No");
-		ast_cli (a->fd, "  USSD use 7 bit encoding : %s\n", pvt->cusd_use_7bit_encoding ? "Yes" : "No");
-		ast_cli (a->fd, "  USSD use UCS-2 decoding : %s\n", pvt->cusd_use_ucs2_decoding ? "Yes" : "No");
 		ast_cli (a->fd, "  Tasks in queue          : %u\n", PVT_STATE(pvt, at_tasks));
 		ast_cli (a->fd, "  Commands in queue       : %u\n", PVT_STATE(pvt, at_cmds));
 		ast_cli (a->fd, "  Call Waiting            : %s\n", pvt->has_call_waiting ? "Enabled" : "Disabled" );
 		ast_cli (a->fd, "  Current device state    : %s\n", dev_state2str(pvt->current_state) );
 		ast_cli (a->fd, "  Desired device state    : %s\n", dev_state2str(pvt->desired_state) );
 		ast_cli (a->fd, "  When change state       : %s\n", restate2str_msg(pvt->restart_time) );
-		
+
 		ast_cli (a->fd, "  Calls/Channels          : %u\n", PVT_STATE(pvt, chansno));
 		ast_cli (a->fd, "    Active                : %u\n", PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]));
 		ast_cli (a->fd, "    Held                  : %u\n", PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]));
@@ -307,7 +303,7 @@ static char* cli_show_device_statistics (struct ast_cli_entry* e, int cmd, struc
 		ast_cli (a->fd, "  Device                      : %s\n", PVT_ID(pvt));
 		ast_cli (a->fd, "  Queue tasks                 : %u\n", PVT_STAT(pvt, at_tasks));
 		ast_cli (a->fd, "  Queue commands              : %u\n", PVT_STAT(pvt, at_cmds));
-		ast_cli (a->fd, "  Responses                   : %u\n", PVT_STAT(pvt, at_responces));
+		ast_cli (a->fd, "  Responses                   : %u\n", PVT_STAT(pvt, at_responses));
 		ast_cli (a->fd, "  Bytes of read responses     : %u\n", PVT_STAT(pvt, d_read_bytes));
 		ast_cli (a->fd, "  Bytes of written commands   : %u\n", PVT_STAT(pvt, d_write_bytes));
 		ast_cli (a->fd, "  Bytes of read audio         : %llu\n", (unsigned long long int)PVT_STAT(pvt, a_read_bytes));
@@ -333,10 +329,10 @@ static char* cli_show_device_statistics (struct ast_cli_entry* e, int cmd, struc
 /*
 		ast_cli (a->fd, "  ACD                         : %d\n",
 			getACD(
-				PVT_STAT(pvt, calls_answered[CALL_DIR_OUTGOING]) 
-				+ PVT_STAT(pvt, calls_answered[CALL_DIR_INCOMING]), 
+				PVT_STAT(pvt, calls_answered[CALL_DIR_OUTGOING])
+				+ PVT_STAT(pvt, calls_answered[CALL_DIR_INCOMING]),
 
-				PVT_STAT(pvt, calls_duration[CALL_DIR_OUTGOING]) 
+				PVT_STAT(pvt, calls_duration[CALL_DIR_OUTGOING])
 				+ PVT_STAT(pvt, calls_duration[CALL_DIR_INCOMING])
 				)
 			);
@@ -392,8 +388,6 @@ static char* cli_show_version (struct ast_cli_entry* e, int cmd, struct ast_cli_
 
 static char* cli_cmd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-
 	switch (cmd)
 	{
 		case CLI_INIT:
@@ -416,17 +410,14 @@ static char* cli_cmd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = send_at_command(a->argv[2], a->argv[3]);
-	ast_cli (a->fd, "[%s] '%s' %s\n", a->argv[2], a->argv[3], msg);
+	int res = send_at_command(a->argv[2], a->argv[3]);
+	ast_cli (a->fd, "[%s] '%s' %s\n", a->argv[2], a->argv[3], res < 0 ? error2str(chan_dongle_err) : "AT command queued");
 
 	return CLI_SUCCESS;
 }
 
 static char* cli_ussd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-	int status;
-	void * msgid;
 
 	switch (cmd)
 	{
@@ -451,22 +442,16 @@ static char* cli_ussd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = send_ussd(a->argv[2], a->argv[3], &status, &msgid);
-	if(status)
-		ast_cli (a->fd, "[%s] %s with id %p\n", a->argv[2], msg, msgid);
-	else
-		ast_cli (a->fd, "[%s] %s\n", a->argv[2], msg);
+	int res = send_ussd(a->argv[2], a->argv[3]);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_dongle_err) : "USSD queued for send");
 
 	return CLI_SUCCESS;
 }
 
 static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
 	struct ast_str * buf;
 	int i;
-	int status;
-	void * msgid;
 
 	switch (cmd)
 	{
@@ -490,7 +475,7 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		return CLI_SHOWUSAGE;
 	}
 
-	buf = ast_str_create (256);
+	buf = ast_str_create (160 * 255);
 	for (i = 4; i < a->argc; i++)
 	{
 		if (i < (a->argc - 1))
@@ -503,65 +488,22 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		}
 	}
 
-	msg = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, 0, &status, &msgid);
+	int res = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, "1", "UNKNOWN", 8);
 	ast_free (buf);
-
-	if(status)
-		ast_cli(a->fd, "[%s] %s with id %p\n", a->argv[2], msg, msgid);
-	else
-		ast_cli(a->fd, "[%s] %s\n", a->argv[2], msg);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_dongle_err) : "SMS queued for send");
 
 	return CLI_SUCCESS;
 }
 
-static char * cli_pdu(struct ast_cli_entry * e, int cmd, struct ast_cli_args * a)
-{
-	const char * msg;
-	int status;
-	void * msgid;
-
-	switch (cmd)
-	{
-		case CLI_INIT:
-			e->command = "dongle pdu";
-			e->usage =
-				"Usage: dongle pdu <device> <PDU>\n"
-				"       Send a <PDU> of sms from <device>\n";
-			return NULL;
-
-		case CLI_GENERATE:
-			if (a->pos == 2)
-			{
-				return complete_device (a->word, a->n);
-			}
-			return NULL;
-	}
-
-	if (a->argc != 4)
-	{
-		return CLI_SHOWUSAGE;
-	}
-
-	msg = send_pdu(a->argv[2], a->argv[3], &status, &msgid);
-
-	if(status)
-		ast_cli(a->fd, "[%s] %s with id %p\n", a->argv[2], msg, msgid);
-	else
-		ast_cli(a->fd, "[%s] %s\n", a->argv[2], msg);
-
-	return CLI_SUCCESS;
-}
-
-#if ASTERISK_VERSION_NUM >= 10800
+#if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 typedef const char * const * ast_cli_complete2_t;
-#else
+#else /* 1.8- */
 typedef char * const * ast_cli_complete2_t;
-#endif
+#endif /* ^1.8- */
 
 static char* cli_ccwa_set (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	static const char * const choices[] = { "enable", "disable", NULL };
-	const char * msg;
 	call_waiting_t enable;
 
 	switch (cmd)
@@ -596,16 +538,14 @@ static char* cli_ccwa_set (struct ast_cli_entry* e, int cmd, struct ast_cli_args
 	else
 		return CLI_SHOWUSAGE;
 
-	msg = send_ccwa_set(a->argv[3], enable, NULL);
-	ast_cli (a->fd, "[%s] %s\n", a->argv[3], msg);
+	int res = send_ccwa_set(a->argv[3], enable);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_dongle_err) : "Call-Waiting commands queued for execute");
 
 	return CLI_SUCCESS;
 }
 
 static char* cli_reset (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-
 	switch (cmd)
 	{
 		case CLI_INIT:
@@ -628,8 +568,8 @@ static char* cli_reset (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = send_reset(a->argv[2], NULL);
-	ast_cli (a->fd, "[%s] %s\n", a->argv[2], msg);
+	int res = send_reset(a->argv[2]);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_dongle_err) : "Reset command queued for execute");
 
 	return CLI_SUCCESS;
 }
@@ -664,7 +604,7 @@ static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_
 		};
 
 	const char * device = NULL;
-	const char * msg;
+	int res;
 	int i;
 
 	switch (cmd)
@@ -714,8 +654,8 @@ static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_
 
 			if(device)
 			{
-				msg = schedule_restart_event(event, i, device, NULL);
-				ast_cli(a->fd, "[%s] %s\n", device, msg);
+				res = schedule_restart_event(event, i, device);
+				ast_cli(a->fd, "[%s] %s\n", device, res < 0 ? error2str(chan_dongle_err) : dev_state2str_msg(event));
 				return CLI_SUCCESS;
 			}
 			break;
@@ -745,8 +685,6 @@ static char * cli_remove(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 #/* */
 static char* cli_start(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-
 	switch (cmd)
 	{
 		case CLI_INIT:
@@ -766,8 +704,8 @@ static char* cli_start(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = schedule_restart_event(DEV_STATE_STARTED, RESTATE_TIME_NOW, a->argv[2], NULL);
-	ast_cli(a->fd, "[%s] %s\n", a->argv[2], msg);
+	int res = schedule_restart_event(DEV_STATE_STARTED, RESTATE_TIME_NOW, a->argv[2]);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_dongle_err) : dev_state2str_msg(DEV_STATE_STARTED));
 
 	return CLI_SUCCESS;
 }
@@ -839,7 +777,7 @@ static char * cli_discovery(struct ast_cli_entry * e, int cmd, struct ast_cli_ar
 	const char * imsi;
 	int imeilen;
 	int imsilen;
-	
+
 	switch (cmd) {
 		case CLI_INIT:
 			e->command =	"dongle discovery";
@@ -904,7 +842,7 @@ static char * cli_discovery(struct ast_cli_entry * e, int cmd, struct ast_cli_ar
 	}
 	pdiscovery_list_end();
 	AST_RWLIST_UNLOCK(&gpublic->devices);
-	
+
 	return CLI_SUCCESS;
 }
 
@@ -919,7 +857,6 @@ static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE (cli_cmd,		"Send commands to port for debugging"),
 	AST_CLI_DEFINE (cli_ussd,		"Send USSD commands to the dongle"),
 	AST_CLI_DEFINE (cli_sms,		"Send SMS from the dongle"),
-	AST_CLI_DEFINE (cli_pdu,		"Send PDU of SMS from the dongle"),
 	AST_CLI_DEFINE (cli_ccwa_set,		"Enable/Disable Call-Waiting on the dongle"),
 	AST_CLI_DEFINE (cli_reset,		"Reset dongle now"),
 

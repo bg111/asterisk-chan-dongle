@@ -7,6 +7,7 @@ AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([chan_dongle.c])
+AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CANONICAL_SYSTEM
 AC_CANONICAL_HOST
 
@@ -22,12 +23,39 @@ AC_ARG_WITH(
 	[ if test "x$with_asterisk" = "xyes" -o "x$with_asterisk" = "xno" ; then  AC_MSG_ERROR([Invalid --with-asterisk=path value]); fi ],
 	[ with_asterisk="../include /usr/include /usr/local/include /opt/local/include" ]
 )
+dnl  Set iconv headers patch
+AC_ARG_WITH(
+	[iconv],
+	AS_HELP_STRING([--with-iconv=path], [set iconv headers location]),
+	[ if test "x$with_iconv" = "xyes" -o "x$with_iconv" = "xno" ; then  AC_MSG_ERROR([Invalid --with-iconv=path value]); fi ],
+	[ with_iconv="../include /usr/include /usr/local/include /opt/local/include" ]
+)
+
+dnl  Required: asterisk version
+AC_ARG_WITH(
+	[astversion],
+	AS_HELP_STRING([--with-astversion=M.m.u], [set asterisk version; for example: 14 or 13.13.1]),
+	[ if echo "$with_astversion" | grep -qE '^[[0-9]][[0-9]]?(\.[[0-9]][[0-9]]?){0,2}$'
+          then with_astversion=$(echo $with_astversion | sed -e 's/.*/&.0.0/' | tr . '\n' |
+				 head -n3 | sed -e 's/^.$/0&/' | tr -d '\n' | sed -e 's/^0*//')
+	  else AC_MSG_ERROR([Invalid --with-astversion=M.m.u value]); fi ],
+	[ AC_MSG_ERROR([Please set --with-astversion=M.m.u (major.minor.micro)]) ]
+)
+AC_DEFINE_UNQUOTED([ASTERISK_VERSION_NUM], [$with_astversion],
+		   [The Asterisk version as configured --with-astversion.])
 
 AC_ARG_ENABLE(
-	[debug], 
+	[debug],
 	AS_HELP_STRING([--enable-debug], [enable code debugging]),
 	[ if test "x$enable_debug" != "xyes" ; then enable_debug="no" ; fi],
 	[ enable_debug="no"]
+)
+
+AC_ARG_ENABLE(
+	[warnings-as-errors],
+	AS_HELP_STRING([--enable-warnings-as-errors], [abort compilation on errors]),
+	[ if test "x$enable_warnings_as_errors" != "xyes" ; then enable_warnings_as_errors="no" ; fi],
+	[ enable_warnings_as_errors="no"]
 )
 
 dnl  Optionally disable manager.
@@ -61,14 +89,15 @@ if test -z "$RM" ; then
 fi
 
 dnl Checks for libraries.
-dnl AC_CHECK_LIB([pthread], [pthread_create])
-dnl AC_CHECK_LIB([iconv], [iconv])
-AC_SEARCH_LIBS([iconv], [c iconv])
+dnl AC_CHECK_LIB([pthread], [pthread_create])  # should use ast_pthread_join everywhere?
+AC_SEARCH_LIBS([iconv], [c iconv],,AC_MSG_ERROR([iconv library missing]))
+AC_CHECK_LIB([sqlite3], [sqlite3_open],,AC_MSG_ERROR([sqlite3 library missing]))
 
 dnl Checks for header files.
 AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/time.h termios.h])
 AC_DEFUN([AC_HEADER_FIND], [
     file=$1
+    found=no
     for path in $2 ; do
 	AC_MSG_CHECKING([whether $file in $path])
 	if test -f $path/$file ; then
@@ -77,22 +106,22 @@ AC_DEFUN([AC_HEADER_FIND], [
 	    AC_MSG_RESULT([yes])
 	    AC_CHECK_HEADER([$file])
 	    break;
-	else
-	    AC_MSG_RESULT([no])
 	fi
+	AC_MSG_RESULT([no])
     done
-    if test -z "$found" ; then
+    if test "$found" = "no"; then
 	AC_MSG_ERROR([Can't find "$file"])
     fi
     ]
 )
 
 AC_HEADER_FIND([asterisk.h], $with_asterisk)
-AC_HEADER_FIND([iconv.h], /usr/include /usr/local/include /opt/local/include)
+AC_HEADER_FIND([iconv.h], $with_iconv)
+AC_CHECK_HEADER([sqlite3.h],,AC_MSG_ERROR([sqlite3.h header file missing]))
 
 AC_DEFINE([ICONV_CONST],[], [Define to const if you has iconv() const declaration of input buffer])
 AC_MSG_CHECKING([for iconv use const inbuf])
-AC_EGREP_HEADER([^extern.+iconv[[:space:]]*\(.+const], [iconv.h], 
+AC_EGREP_HEADER([^extern.+iconv[[:space:]]*\(.+const], [iconv.h],
     [
     AC_DEFINE([ICONV_CONST],[const])
     AC_MSG_RESULT([yes])
@@ -101,7 +130,7 @@ AC_EGREP_HEADER([^extern.+iconv[[:space:]]*\(.+const], [iconv.h],
 )
 
 AC_MSG_CHECKING([for iconv_t in iconv.h])
-AC_EGREP_HEADER([iconv_t], [iconv.h], 
+AC_EGREP_HEADER([iconv_t], [iconv.h],
     [
     AC_DEFINE([ICONV_T], [iconv_t], , [Define to iconv_t if you has iconv_t in iconv.h])
     AC_MSG_RESULT(yes)
@@ -113,7 +142,7 @@ AC_EGREP_HEADER([iconv_t], [iconv.h],
     ])
 
 AC_MSG_CHECKING([for AST_CONTROL_SRCCHANGE in asterisk/frame.h])
-AC_EGREP_HEADER([AST_CONTROL_SRCCHANGE], [asterisk/frame.h], 
+AC_EGREP_HEADER([AST_CONTROL_SRCCHANGE], [asterisk/frame.h],
     [
     AC_DEFINE([HAVE_AST_CONTROL_SRCCHANGE], [], [Define to 1 if you have HAVE_AST_CONTROL_SRCCHANGE in asterisk/frame.h])
     AC_MSG_RESULT([yes])
@@ -133,6 +162,18 @@ AC_TYPE_UINT64_T
 dnl AC_CHECK_TYPE(size_t, unsigned long)
 dnl AC_CHECK_TYPE(ssize_t, long)
 dnl AC_CHECK_TYPE(uint64_t, unsigned long long)
+
+AC_CHECK_SIZEOF(int)
+AC_CHECK_SIZEOF(long int)
+AC_CHECK_SIZEOF(long long int)
+AC_CHECK_SIZEOF(time_t)
+case "$ac_cv_sizeof_time_t" in
+''|0) AC_MSG_ERROR([Could not find time_t type]);;
+$ac_cv_sizeof_int) AC_DEFINE([PRI_time_t], ["d"], [printf format for time_t]);;
+$ac_cv_sizeof_long_int) AC_DEFINE([PRI_time_t], ["ld"], [printf format for time_t]);;
+$ac_cv_sizeof_long_long_int) AC_DEFINE([PRI_time_t], ["lld"], [printf format for time_t]);;
+*) AC_MSG_ERROR([Could not find match size of time_t to printf format])
+esac
 
 dnl checking compiler options
 AC_DEFUN([AC_CC_OPT], [
@@ -165,10 +206,17 @@ AC_SUBST([TARGET])
 AC_CC_OPT([-fPIC],[-fPIC])
 AC_CC_OPT([-Wall],[-Wall])
 AC_CC_OPT([-Wextra],[-Wextra])
+if test "x$enable_warnings_as_errors" = "xyes" ; then
+    AC_CC_OPT([-Werror=all],[-Werror=all])
+    AC_CC_OPT([-Werror=extra],[-Werror=extra])
+    AC_CC_OPT([-Werror=discarded-qualifiers],[-Werror=discarded-qualifiers])
+    AC_CC_OPT([-Wno-error=format-truncation],[-Wno-error=format-truncation])
+fi
 AC_CC_OPT([-MD -MT conftest.o -MF /dev/null -MP],[-MD -MT \$@ -MF .\$(subst /,_,\$@).d -MP])
 
 AC_DEFUN([AC_CHECK_DESTDIR], [
     if test -z "$DESTDIR" ; then
+	found=no
 	for path in $1 ; do
 	    AC_MSG_CHECKING([whether DESTDIR is $path])
 	    if test -f $path/pbx_config.so ; then
@@ -176,17 +224,21 @@ AC_DEFUN([AC_CHECK_DESTDIR], [
 		found="yes"
 		DESTDIR=$path
 		break;
-	    else
-		AC_MSG_RESULT([no])
 	    fi
+	    AC_MSG_RESULT([no])
 	done
-	if test -z "$found" ; then
-	    AC_MSG_ERROR(DESTDIR is unknown, please explicite set like DESTDIR=/usr/lib/asterisk/modules ./configure)
+	if test "$found" = "no"; then
+	    AC_MSG_ERROR([DESTDIR is unknown, please be explicit: ./configure DESTDIR=/usr/lib/asterisk/modules])
 	fi
     fi
     ])
 
-AC_CHECK_DESTDIR([/usr/lib/asterisk/modules /usr/local/lib/asterisk/modules /opt/local/lib/asterisk/modules])
+dnl This detection is kind of flaky. Don't rely on it. The module
+dnl directory could be lib64 or x86_64-linux-gnu or even somewhere
+dnl completely custom.
+AC_CHECK_DESTDIR([ \
+    /usr/lib/asterisk/modules /usr/lib64/asterisk/modules \
+    /usr/local/lib/asterisk/modules /opt/local/lib/asterisk/modules])
 
 dnl Checks for library functions.
 AC_FUNC_MEMCMP
@@ -195,18 +247,23 @@ AC_CHECK_FUNCS([memchr memmove memset memmem strcasecmp strchr strncasecmp strto
 
 dnl Apply options to defines
 if test "x$enable_debug" = "xyes" ; then
-  CFLAGS="$CFLAGS -O0 -g"
+  CFLAGS="$CFLAGS -O0 -g3"
   AC_DEFINE([__DEBUG__], [1], [Build with debugging])
 else
   CFLAGS="$CFLAGS -O6"
 fi
 
+dnl Asterisk header files use lots of old style declarations, ignore those.
+dnl > warning: ‘inline’ is not at beginning of declaration [-Wold-style-declaration]
+dnl >   static void force_inline _ast_assert(...)
+CFLAGS="$CFLAGS -Wno-old-style-declaration"
+
 if test "x$enable_manager" = "xyes" ; then
-  AC_DEFINE([BUILD_MANAGER],[1], [Build Manager extentions])
+  AC_DEFINE([BUILD_MANAGER],[1], [Build Manager extensions])
 fi
 
 if test "x$enable_apps" = "xyes" ; then
-  AC_DEFINE([BUILD_APPLICATIONS],[1],[Build extention applications])
+  AC_DEFINE([BUILD_APPLICATIONS],[1],[Build Application extensions])
 fi
 
 case "$target_os" in
